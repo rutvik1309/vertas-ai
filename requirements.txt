@@ -3,7 +3,8 @@ flask-cors==4.0.0
 scikit-learn==1.6.1
 nltk==3.9.1
 beautifulsoup4==4.13.3
-lxml[html_clean]
+lxml
+lxml_html_clean
 tinycss2
 cssselect
 Pillow
