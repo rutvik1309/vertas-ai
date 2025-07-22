@@ -186,3 +186,6 @@ def retrieve_context(text, n_results=5):
 
 if __name__ == "__main__":
     app.run(debug=True, port=5005)
+@app.route('/health')
+def health():
+    return "OK", 200
