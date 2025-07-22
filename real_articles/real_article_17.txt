@@ -1,0 +1,49 @@
+New York CNN —
+
+A nearly three-year-old AI startup has caught Meta’s attention, and reportedly Apple’s too.
+
+Meta spoke with AI search engine Perplexity about a potential acquisition, although a deal was not reached, according to sources familiar with the discussions. The talks were held in late April or early May, and were reported earlier by Bloomberg and The Information.
+
+Separately, Apple internally discussed acquiring Perplexity, according to Bloomberg, which said the talks were in an early stage and may not result in a deal.
+
+The talks come as Apple and Meta are perceived to be behind on their AI products and services while competitors like Google and OpenAI charge ahead. The tech giants’ interest underscores the fierce competition for AI talent in what some believe will be the next major evolution of the internet.
+
+Jesse Dwyer, head of communications for Perplexity, declined to comment regarding the discussions with Meta. When asked about the internal Apple discussions, he said in an email to CNN: “We have no knowledge of any current or future M&A discussions involving Perplexity.”
+
+Meta declined to comment. Apple did not respond to CNN’s request for comment.
+
+What is Perplexity, and what does it do?
+
+Perplexity is a search tool that uses AI models to parse web content and curate answers. Answers are usually posted as a summary, although Perplexity does provide links to its sources. The company was founded in August 2022 and launched the first iteration of its search engine in December 2022.
+
+Perplexity offers two types of search modes: quick search and pro search. The former is intended for general search queries, while the latter will provide more detailed responses that require more digging and research. Perplexity’s free tier allows three pro searches per day.
+
+Perplexity began as a tool for letting users interact with multiple AI models from different companies in a familiar format: the search engine. But Perplexity can do a lot more than answer search queries. You can also ask questions about files, prompt it to handle projects (i.e. create a travel itinerary or make a playlist), create images and browse curated pages based on the topics you’re interested in – much like ChatGPT and other AI services.
+
+Many of those additional features, however, fall under Perplexity’s paid tier, which costs $20 per month and provides access to more AI models, unlimited file uploads and image generation among other perks. Perplexity is also working on a web browser called Comet.
+
+Perplexity has become relatively popular, but it faces stiff competition, particularly from OpenAI’s ChatGPT, which was the most downloaded chatbot app in the third quarter of 2024, according to app data analysis firm Sensor Tower. ChatGPT accounted for 45% of AI chatbot app downloads in that period, while Perplexity was included in the “others” category.
+
+Perplexity has also been caught in the middle of one of the biggest controversies surrounding AI: content use. The BBC recently threatened to take legal action against Perplexity, claiming the tool copied its content without permission. Dow Jones, the parent company of The Wall Street Journal, and the New York Post, also sued Perplexity last year over accusations that it used its content illegally, stealing traffic from their websites.
+
+Why would Apple or Meta want to buy it?
+
+A deal with Perplexity would seemingly fit in with Apple’s or Meta’s AI ambitions. Both companies are incorporating AI into their most important products; for Apple, that’s the iPhone, and for Meta, it’s apps like Instagram and WhatsApp.
+
+Apple introduced updates to existing AI tools, like language translation and custom emoji creation, at its annual developers conference in June. The company is exploring infusing an AI-powered search engine into its Safari web browser, Apple’s senior vice president of software and services, Eddy Cue, said in court testimony in May, according to Bloomberg.
+
+But Apple also has some catching up to do when it comes to AI. Its revamped version of Siri, announced more than a year ago, still doesn’t have a release date.
+
+Google currently pays Apple billions of dollars to be the default search engine in its Safari browser, which is the second most popular web browser behind Google’s Chrome. But that deal is now under scrutiny as part of the Justice Department’s search antitrust lawsuit against Google – meaning Apple may have to think about alternatives.
+
+A deal with Perplexity, if one were to ever materialize, would give another boost to Apple’s current apps and services while it continues working on Siri. The company already partners with OpenAI and Google for the iPhone’s AI features.
+
+“Apple needs to be relevant here,” Ben Bajarin, CEO and principal analyst of market research firm Creative Strategies, told CNN in March. “And the fact that they don’t have a lot to show for their efforts is I think what gives most people the concern.”
+
+Meta has been scrambling to attract top-tier AI talent, a testament to how crucial the company sees AI for its future. For example, Meta has offered pay packages as high as $100 million to some people as part of CEO Mark Zuckerberg’s recruitment efforts, according to The Wall Street Journal. OpenAI CEO Sam Altman said in a recent interview on the “Uncapped” podcast that Meta has offered $100 million signing bonuses to his employees.
+
+Meta also just made a major investment in Scale AI, a startup that offers tools to help companies label the data used to train AI models, that values it at over $29 billion. The social media giant hired Scale AI founder Alexandr Wang as part of the deal.
+
+While Meta has seem some success in AI – its Llama models are widely used by developers, and its Ray-Ban AI glasses are relatively popular – the company is said to be struggling in other areas. It reportedly delayed the rollout of its next flagship Llama model, according to The Wall Street Journal, and its two-month-old standalone AI app raised privacy concerns after it was discovered that some user queries that were seemingly believed to be posted in private were actually public.
+
+Some tech giants are predicting AI could be as big a leap forward as the internet and the smartphone – two advancements that Meta and Apple played a major role in shaping. Whether the tech giants can be similarly innovative in AI could be critical to both their futures, especially as the technology is expected to upend the way people work, communicate and find information.

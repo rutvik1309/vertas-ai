@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>VertasAI</title>
+  <style>
+    body { font-family: Arial; padding: 15px; width: 300px; }
+    textarea { width: 100%; height: 150px; }
+    button { width: 100%; margin-top: 10px; }
+    .result { margin-top: 15px; padding: 10px; border-radius: 6px; background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h3>VertasAI</h3>
+  <form onsubmit="return false;">
+    <textarea id="articleText" placeholder="Paste article text..."></textarea>
+    <br>
+    <input type="url" id="articleURL" placeholder="Or enter article URL..." style="width:100%">
+    <br><br>
+    <input type="file" id="fileInput" accept=".txt,.pdf,.jpg,.png,.mp3,.mp4">
+    <br><br>
+    <button type="button" id="checkBtn">Check Article</button>
+</form>
+  <div id="result" style="margin-top:15px;"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

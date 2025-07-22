@@ -1,0 +1,69 @@
+CNN —
+
+Last week, Grok, the chatbot from Elon Musk’s xAI, replied to a user on X who asked a question about political violence. It said more political violence has come from the right than the left since 2﻿016.
+
+Musk was not pleased.
+
+“Major fail, as this is objectively false. Grok is parroting legacy media,” Musk wrote, even though Grok cited data from government sources such as the Department of Homeland Security. Within three days, Musk promised to deliver a major Grok update that would “rewrite the entire corpus of human knowledge,” calling on X users to send in “divisive facts” that are “politically incorrect, but nonetheless factually true” to help train the model.
+
+“Far too much garbage in any foundation model trained on uncorrected data,” he wrote.
+
+O﻿n Friday, Musk announced the new model, called Grok 4, will be released just after July 4th.
+
+The exchanges, and others like it, raises concerns that the world’s richest man may be trying to influence Grok to follow his own worldview – potentially leading to more errors and glitches, and surfacing important questions about bias, according to experts. AI is expected to shape the way people work, communicate and find information, and it’s already impacting areas such as software development, healthcare and education.
+
+And the decisions that powerful figures like Musk make about the technology’s development could be critical. Especially considering Grok is integrated into one of the world’s most popular social networks – and one where the old guardrails around the spread of misinformation have been removed. While Grok may not be as popular as OpenAI’s ChatGPT, its inclusion in Musk’s social media platform X has put it in front of a massive digital audience.
+
+“This is really the beginning of a long fight that is going to play out over the course of many years about whether AI systems should be required to produce factual information, or whether their makers can just simply tip the scales in the favor of their political preferences if they want to,” said David Evan Harris, an AI researcher and lecturer at UC Berkeley who previously worked on Meta’s Responsible AI team.
+
+A source familiar with the situation told CNN that Musk’s advisers have told him Grok “can’t just be molded” into his own point of view, and that he understands that.
+
+xAI did not respond to a request for comment.
+
+Concerns about Grok following Musk’s views
+
+For months, users have questioned whether Musk has been tipping Grok to reflect his worldview.
+
+In May, the chatbot randomly brought up claims of a white genocide in South Africa in responses to completely unrelated queries. In some responses, Grok said it was “instructed to accept as real white genocide in South Africa”.
+
+Musk was born and raised in South Africa and has a history of arguing that a “white genocide” has been committed in the nation.
+
+A few days later, xAI said an “unauthorized modification” in the extremely early morning hours Pacific time pushed the AI chatbot to “provide a specific response on a political topic” that violates xAI’s policies.
+
+As Musk directs his team to retrain Grok, others in the AI large language model space like Cohere co-founder Nick Frosst believe Musk is trying to create a model that pushes his own viewpoints.
+
+“He’s trying to make a model that reflects the things he believes. That will certainly make it a worse model for users, unless they happen to believe everything he believes and only care about it parroting those things,” Frosst said.
+
+What it would take to re-train Grok
+
+It’s common for AI companies like OpenAI, Meta and Google to constantly update their models to improve performance, according to Frosst.
+
+But retraining a model from scratch to “remove all the things (Musk) doesn’t like” would take a lot of time and money – not to mention degrade the user experience – Frosst said.
+
+“And that would make it almost certainly worse,” Frosst said. “Because it would be removing a lot of data and adding in a bias.”
+
+A Grok account on X is displayed on a phone screen. Jakub Porzycki/NurPhoto/Shutterstock
+
+Another way to change a model’s behavior without completely retraining it is to insert prompts and adjust what are called weights within the model’s code. This process could be faster than totally retraining the model since it retains its existing knowledge base.
+
+Prompting would entail instructing a model to respond to certain queries in a specific way, whereas weights influence an AI model’s decision-making process.
+
+Dan Neely, CEO of Vermillio which helps protect celebrities from AI-generated deepfakes, told CNN that xAI could adjust Grok’s weights and data labels in specific areas and topics.
+
+“They will use the weights and labeling they have previously in the places that they are seeing (as) kind of problem areas,” Neely said. “They will simply go into doing greater level of detail around those specific areas.”
+
+Musk didn’t detail the changes coming in Grok 4, but did say it will use a “specialized coding model.”
+
+Bias in AI
+
+Musk has said his AI chatbot will be “maximally truth seeking,” but all AI models have some bias baked in because they are influenced by humans who make choices about what goes into the training data.
+
+“AI doesn’t have all the data that it should have. When given all the data, it should ultimately be able to give a representation of what’s happening,” Neely said. “However, lots of the content that exists on the internet already has a certain bent, whether you agree with it or not.”
+
+It’s possible that in the future, people will choose their AI assistant based on its worldview. But Frosst said he believes AI assistants known to have a particular perspective will be less popular and useful.
+
+“For the most part, people don’t go to a language model to have ideology repeated back to them, that doesn’t really add value,” he said. “You go to a language model to get it to do with do something for you, do a task for you.”
+
+Ultimately, Neely said he believes authoritative sources will end up rising back to the top as people seek places they can trust.
+
+But “the journey to get there is very painful, very confusing,” Neely said and “arguably, has some threats to democracy.”

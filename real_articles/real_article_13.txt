@@ -1,0 +1,15 @@
+New York CNN —
+
+The dreaded “blue screen of death” that has tormented millions of Windows users for decades is being put to rest.
+
+Microsoft is ditching the notorious feature that appears on Windows computers in the coming months, “streamlining the unexpected restart experience” with a new black-colored screen, the company announced in a blog post.
+
+The “simplified” screen that appears during “unexpected restarts” will roll out later this summer on all Windows 11 devices that use 24H2 operating software. It will also reduce reboots to “about two seconds for most users,” the company said.
+
+Variations of the “blue screen of death” have been in use since the early 1990s. It started with the “blue screen of unhappiness” in Windows 3.1 when the control-alt-delete shortcut was added to exit an unresponsive program, along with dialogue written by former Microsoft CEO Steve Ballmer.
+
+But according to Microsoft employee Raymond Chen, the actual “blue screen of death” launched in 1993 on Windows NT when the “system is unrecoverably dead at this point.”
+
+Also, a version of the black screen was introduced in 2021 to Windows 11 users. This new iteration has updated dialogue.
+
+The blue screen haunted millions of people last July when a massive outage caused by CrowdStrike brought most of the world’s technology to its knees and Windows-operated machines displayed the infamous blue.

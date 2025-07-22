@@ -1,0 +1,43 @@
+CNN —
+
+Hospitals, water dams and power plants across the US are on alert for any potential Iranian cyberattacks in retaliation for US airstrikes on Iran nuclear sites over the weekend.
+
+The United States dropped massive bombs on three nuclear sites inside Iran on Saturday, decisively entering into conflict with the country. In the three days since the US strikes, the US power grid’s cyberthreat-sharing center has monitored the dark web for Iranian activity, and hospital executives have checked in on the threat level with the FBI, sources familiar with those conversations told CNN.
+
+It’s a state of vigilance dictated by common sense: For Iran, retaliation against the US is far easier in cyberspace than physically. Tehran-linked hackers have previously attacked American hospitals and water facilities.
+
+“Iran’s kinetic retaliation is already in motion and the digital dimension to that may not be far behind,” Adam Meyers, a senior vice president at cybersecurity firm CrowdStrike, told CNN on Monday, shortly after Iran fired missiles towards a US military base in Qatar in retaliation for the US strikes. “This cyber element is what lets them extend their reach and there’s an air of deniability to it.”
+
+There haven’t been any new confirmed breaches of US organizations from Iranian hackers, Meyers said. But hackers linked with Iran have reportedly been scanning the internet for vulnerable software and have been talking openly about retaliating against US organizations, he said.
+
+Hours after the Iranian missile strikes, President Donald Trump announced a ceasefire between Israel and Iran. But it remained unclear Monday night in the US – early Tuesday morning in the Middle East – whether the fragile equilibrium would hold.
+
+Before the announcement of the ceasefire, Department of Homeland Security intelligence analysts had warned about a long-running threat from Iran. Tehran could “target” American government officials if Iranian leaders believe “the stability or survivability” of their regime is at risk, according to a Department of Homeland Security bulletin from Sunday obtained by CNN.
+
+But less planning may be needed for any Iranian response in cyberspace, and hacking operations can also be far below the threshold of war. Tehran has been opportunistic in the past about finding vulnerable US critical infrastructure to exploit, according to US officials.
+
+“If it’s there, and vulnerable, they have a higher likelihood of targeting it,” one US official, who was monitoring potential Iranian hacking threats to critical infrastructure, said on Monday.
+
+CNN has requested comment from Iran’s mission to the United Nations.
+
+An interception takes place after Iran's armed forces say they targeted The Al-Udeid base in a missile attack, in Qatar, June 23, 2025. Stringer/Reuters
+
+After the Israel-Gaza war began in fall of 2023, there were multiple cyberattacks on US water facilities that American officials blamed on Iran’s Islamic Revolutionary Guard Corps. In one instance, pro-Iran hackers breached internet-connected industrial equipment that was sitting online at a water plant outside of Pittsburgh, forcing the plant to operate one of its pump stations manually. The hackers inscribed an anti-Israel message on the monitor that they breached.
+
+The Cybersecurity and Infrastructure Security Agency (CISA), a part of DHS, “is actively coordinating with government, industry, and international partners to share actionable intelligence and strengthen collective defense,” CISA spokesperson Marci McCarthy said in a statement to CNN on Monday night. “There are currently no specific credible threats against the homeland.”
+
+Right now, US officials and corporate executives are keeping a close eye on that same group﻿ of hackers and other so-called “hacktivist” personas linked to Iran. These hackers often exaggerate their success to gain a psychological edge over their targets. One of the alleged Iranian personas previously contacted American reporters, including this one, in attempts to convince them to promote their cyberattacks.
+
+“Low-level cyber attacks against US networks by pro-Iranian hacktivists are likely, and cyber actors affiliated with the Iranian government may conduct attacks against US networks,” DHS said in a public advisory Sunday.
+
+“Iranian cyberattacks have been plays for attention as well as impact,” said Anne Neuberger, who served as deputy national security adviser for cyber and emerging technology under President Joe Biden.
+
+Some cybersecurity executives are trying to flip the script on those mind games by preaching vigilance without over-hyping the threat.
+
+“We understand from direct communications with the federal government that heightened vigilance and reporting is warranted for both cyber and physical threats,” said John Riggi, a former FBI official who is now national advisor for cybersecurity and risk at the American Hospital Association.
+
+The association, he said, “is in close coordination with the FBI regarding any physical or cyber threats to hospitals and the broader healthcare sector.”
+
+Iran’s cyber capabilities are not as advanced as those of China or Russia, experts say, but they can be more unpredictable. The FBI blamed Tehran for a cyberattack on Boston Children’s Hospital in 2021 and for creating a website in 2020 that threatened US election officials with bull’s-eyes over photos of their faces.
+
+“Iran’s growing expertise and willingness to conduct aggressive cyber operations make it a major threat to the security of U.S. networks and data,” the Office of the Director of National Intelligence said in its threat assessment in March. “Guidance from Iranian leaders has incentivized cyber actors to become more aggressive in developing capabilities to conduct cyber attacks.”

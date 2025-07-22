@@ -1,0 +1,31 @@
+New York CNN —
+
+Trump Mobile, the wireless service provider and phone company launched by the Trump Organization, no longer promises on its website that its upcoming smartphone will be made in America.
+
+The company adjusted language on its website on or around June 22 to drop the “Made in USA” claim, according to captures of the site by the Internet Archive. As of June 25, the company says the T1 8002 phone was “designed with American values in mind.” The website previously said the phone was “Made﻿ in the USA,” according to screenshots taken by CNN earlier in June and archived versions of the site from June 18. The Verge first reported the change.
+
+The revised language comes after industry analysts expressed skepticism about the phone’s American origins, noting that its specifications resembled a phone made by a Chinese manufacturer.
+
+Despite changed language on the site, a spokesperson for Trump Mobile told CNN that “the T1 phones are proudly being made in America.”
+
+“Speculation to the contrary is simply inaccurate,” the statement said.
+
+The Trump Organization’s press release from last week announcing Trump Mobile still says the $499 gold-colored phone will be “proudly designed and built in the United States.”
+
+In the formal announcement from Trump Tower on June 16, Trump Mobile partner Pat O’Brien said, ”we are going to be doing phones that we are going to build in America.” But later, in a clip from an interview with conservative media personality Benny Johnson, Eric Trump said “eventually all the phones can be built in the United States of America.”
+
+Ryan Reith, group vice president for the International Data Corporation’s Worldwide Device Tracker, previously told CNN that terms like “designed” and “built” are very vague. That makes it unclear precisely what parts of the phone making process would have taken place in the US. Apple, for example, designs its phones in California, but assembles them in areas like China and India with components from international suppliers.
+
+Trump Mobile’s website says the phone is “brought to life right here in the USA.”
+
+“There (are) no phones that are really being built in the US from start to finish,” Reith said last week when Trump Mobile was announced.
+
+Some of the T1 8002 phone’s specifications also have changed, according to the Trump Mobile website. While the phone was originally listed as having a 6.78-inch screen, the website now says it has a 6.25-inch screen. That’s a noticeable change in size similar to the difference between an iPhone 16 and an iPhone 16 Pro Max. It’s rare for a tech company to make such a drastic change after announcing a phone.
+
+Trump Mobile also no longer lists the phone’s memory, the part of the phone that stores app data and impacts performance when switching between apps.
+
+Todd Weaver, CEO of Purism, one of the only known companies to actually manufacture a cell phone in the United States, and Max Weinbach, an analyst at market research firm Creative Strategies, independently told CNN previously that they believe the originally announced T1 phone looks like a version of the already available Revvl 7 Pro 5G. That phone is made by China-based Wingtech, which provides manufacturing services for smartphones and other products, and retails for around $169 on Amazon.
+
+The debut of Trump Mobile came as President Trump, who is not involved in the daily operations of the Trump Organization run by his sons, has been pressuring tech giants like Apple and Samsung to make their smartphones in the United States. The move is part of a push to bring manufacturing jobs back to America, although experts have said making phones domestically at scale is a challenging, if not impossible, task – particularly under the September timeframe originally promised.
+
+“Unless the Trump family secretly built out a secure, onshore or nearshore (fabrication) operation over years of work without anyone noticing, it’s simply not possible to deliver what they’re promising,” Weaver previously said.

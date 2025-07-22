@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vertas AI</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f8f9fa; }
+        h1 { color: #333; }
+        .container { background: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .result { margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload News Article</h1>
+        <form action="/" method="post" enctype="multipart/form-data">
+            <label>Paste Article URL:</label>
+            <input type="url" name="article_url" placeholder="https://example.com/article" style="width:100%"><br><br>
+            <label>Or Upload Article File:</label>
+            <input type="file" name="file"><br><br>
+            <input type="submit" value="Predict">
+          </form>
+          
+
+        {% if prediction %}
+            <div class="result">
+                <h3>Prediction: {{ prediction }}</h3>
+                <p>Confidence: {{ confidence }}</p>
+            </div>
+        {% endif %}
+
+        {% if reasoning %}
+  <div class="output-box">
+    <h4>Gemini Reasoning & References:</h4>
+    <p>{{ reasoning|safe }}</p>
+  </div>
+{% endif %}
+
+    </div>
+</body>
+</html>

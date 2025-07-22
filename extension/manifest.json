@@ -1,0 +1,14 @@
+{
+    "manifest_version": 3,
+    "name": "VertasAI",
+    "version": "1.0",
+    "description": "Check if an article is fake or real.",
+    "permissions": ["tabs"],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "action": {
+      "default_icon": "icon.png"
+    }
+  }
+  

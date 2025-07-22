@@ -1,0 +1,55 @@
+New York CNN —
+
+When Karandeep Anand’s 5-year-old daughter gets home from school, they fire up the artificial intelligence chatbot platform Character.AI so she can chat about her day with her favorite characters, such as “Librarian Linda.”
+
+Anand’s experience using the product as a parent might be helpful now that he’s Character.AI’s new chief executive, a change the company announced last month.
+
+He’s taken on the top job at a complicated moment for the company, which lets users talk to a variety of AI-generated personas. Character.AI faces fierce competition in an increasingly crowded space, as well as lawsuits from families who claim the service exposed their children to inappropriate content and failed to implement adequate safeguards.
+
+Character.AI has also received tough questions about safety from lawmakers, and one advocacy group said earlier this year that AI companion apps should not be used by kids under 18. Even for adult users, experts have raised alarms about people forming potentially harmful attachments to AI characters.
+
+Anand brings experience at some of the biggest tech companies to his new role leading Character.AI’s approximately 70-person team. He spent 15 years at Microsoft and six years at Meta, including as vice president and head of business products at the social media giant. He also served as a board advisor for Character.AI before joining as CEO.
+
+And he told CNN he sees a bright future for the platform in interactive AI entertainment.
+
+In other words, rather than people consuming “brain rot” on social media for entertainment, Anand wants them co-creating stories and conversations with Character.AI for fun.
+
+“AI can power a very, very powerful personal entertainment experience unlike anything we’ve seen in the last 10 years in social media, and definitely nothing like what TV used to be,” Anand said in an interview.
+
+Character.AI named Karandeep Anand its new CEO last month. Kelly Communications
+
+Unlike multi-purpose AI tools like ChatGPT, Character.AI offers range of different chatbots that are often modeled after celebrities and fictional characters. Users can also create their own for conversations or role play. Another distinction is that Character.AI bots respond with human-like conversational cues, adding references to facial expressions or gestures into their replies.
+
+The personas of AI characters on the app vary widely, from romantic partners to language tutors or Disney characters. It also features characters like “Friends hot mom,” which describes itself as “curvy, busty, kind, loving, shy, motherly, sensual”; and “Therapist,” which calls itself a “licensed CBT therapist,” although it features a disclaimer that it is not a real person or licensed professional.
+
+“(We’re) doubling down on entertainment, doubling down on trust and safety,” Anand said. “And a lot of the work we want to do is enable an entirely new creator ecosystem around AI entertainment.”
+
+Youth safety on Character.AI
+
+Character.AI was first sued by a parent — a Florida mom who alleges her 14-year-old son died by suicide after developing an inappropriate relationship with chatbots on the platform — last October. Two months later, two more families filed a joint suit against the company, accusing it of providing sexual content to their children and encouraging self-harm and violence.
+
+Since then, the company has implemented a range of new safety measures, including a pop-up that directs users who mention self-harm or suicide to the National Suicide Prevention Lifeline. It also updated its AI model for users under the age of 18 to reduce the likelihood that they encounter sensitive or suggestive content, and gives parents the option to receive a weekly email about their teen’s activity on the platform.
+
+Anand said he’s confident in the improvements Character.AI has made since last year, but that work to keep the platform safe, especially for young users, continues. Character.AI’s policies technically require users to be over the age of 13, although it does not ask for information to verify that users are signing up with the correct birthdate.
+
+“The tech and the industry and the user base is constantly evolving (so) that we can never let the guard off. We have to constantly stay ahead of the curve,” Anand said.
+
+He added that the company continues to test how people could misuse new features to prevent abuse, such as a video generator launched last month that lets users animate their bots. In the days following the tool’s arrival, users shared unsuccessful attempts to test its limits by creating fake videos of prominent figures like Elon Musk.
+
+“We had to red team the product for such a long time to make sure you cannot use this for any negative use case like deepfakes or bullying,” Anand said.
+
+Those efforts aside, Anand said in an introductory note to Character.AI users last month that one of his top priorities is to make the platform’s safety filter “less overbearing,” adding that “too often, the app filters things that are perfectly harmless.”
+
+He told CNN that things like mentions of blood when users are engaging in “vampire fan fiction role play” — something he says he’s a fan of — might be censored under the current model, which he wants to update to better understand context while balancing the need for safety.
+
+Leading in the competitive AI space
+
+Among Anand’s other key objectives: encouraging more creators to join the platform to make new chatbot characters and upgrading the social feed where users can share content they’ve created with Character.AI chatbots.
+
+The latter feature is similar to an app Meta launched this year that allows people to publicly share their prompts and AI-generated creations. Meta drew heat when apparently confused users shared conversations that contained embarrassing or personal details — a reminder of the privacy challenges that can come with AI tools.
+
+But the social element could help further differentiate Character.AI from bigger competitors like ChatGPT, which users are also increasingly forming personal connections with.
+
+Another challenge Anand will face as CEO is retaining and growing the company’s workforce, as an AI talent war heats up across the tech industry. In a sign of the competition for top talent, Meta has reportedly offered pay packages and bonuses worth hundreds of millions of dollars to grow its new superintelligence team. Character.AI co-founder and former CEO Noam Shazeer was also lured back to Google last year, where he’d previously built conversational AI technology.
+
+“It is hard, I will not lie,” Anand said. “The good news for me as CEO is all the people we have here are very, very passionate and mission driven.”
