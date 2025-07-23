@@ -28,9 +28,10 @@ gemini_model = genai.GenerativeModel("models/gemini-2.0-flash-exp")
 
 # Connect to ChromaDB
 chroma_settings = Settings(
-    persist_directory="./chroma_db",
-    is_persistent=True
+    persist_directory=None,  # <== disables persistence
+    is_persistent=False
 )
+
 chroma_client = Client(settings=chroma_settings)
 embedding_func = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key="AIzaSyA7APWpWr4LizACI9OBsJyunrVSnYkFNaA")
 collection = chroma_client.get_or_create_collection(name="news_articles", embedding_function=embedding_func)
@@ -184,8 +185,12 @@ def retrieve_context(text, n_results=5):
     return context
 
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5005)
+
 @app.route('/health')
 def health():
     return "OK", 200
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5005))
+    app.run(host="0.0.0.0", port=port)
