@@ -27,10 +27,9 @@ genai.configure(api_key="AIzaSyA7APWpWr4LizACI9OBsJyunrVSnYkFNaA")
 gemini_model = genai.GenerativeModel("models/gemini-2.0-flash-exp")
 
 # Connect to ChromaDB
-chroma_settings = Settings(
-    persist_directory=None,  # <== disables persistence
-    is_persistent=False
-)
+chroma_settings = Settings(is_persistent=False)
+
+
 
 chroma_client = Client(settings=chroma_settings)
 embedding_func = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key="AIzaSyA7APWpWr4LizACI9OBsJyunrVSnYkFNaA")
