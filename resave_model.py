@@ -1,21 +1,15 @@
-# resave_model.py
-
 from features import text_length_func, unique_words_func, avg_word_length_func, sentence_count_func
 import pickle
-import numpy as np
 
-# Load pipeline
+# Load the model
 with open("final_pipeline.pkl", "rb") as f:
     pipeline = pickle.load(f)
 
-# Remove numpy.random generator if any
-if hasattr(pipeline, 'random_state'):
-    pipeline.random_state = None
-if hasattr(pipeline, 'set_params'):
-    pipeline.set_params(random_state=None)
+# Fix for random state issue: set random_state only for the classifier
+pipeline.named_steps["classifier"].random_state = None
 
-# Save pipeline again with legacy-compatible NumPy
+# Save it again under a new filename
 with open("final_pipeline_clean.pkl", "wb") as f:
-    pickle.dump(pipeline, f, protocol=pickle.HIGHEST_PROTOCOL)
+    pickle.dump(pipeline, f)
 
-print("✅ Model re-saved without numpy BitGenerator issue.")
+print("Model re-saved successfully with cleaned random state.")
