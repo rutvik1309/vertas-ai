@@ -2,24 +2,20 @@
 
 from features import text_length_func, unique_words_func, avg_word_length_func, sentence_count_func
 import pickle
+import numpy as np
 
-# Step 1: Load the model
+# Load pipeline
 with open("final_pipeline.pkl", "rb") as f:
-    model = pickle.load(f)
+    pipeline = pickle.load(f)
 
-# Step 2: Clean up any random state to avoid NumPy MT19937 error
-def remove_random_state(obj):
-    if hasattr(obj, "random_state"):
-        obj.random_state = None
-    if hasattr(obj, "estimators_"):
-        for est in obj.estimators_:
-            remove_random_state(est)
-    return obj
+# Remove numpy.random generator if any
+if hasattr(pipeline, 'random_state'):
+    pipeline.random_state = None
+if hasattr(pipeline, 'set_params'):
+    pipeline.set_params(random_state=None)
 
-model = remove_random_state(model)
+# Save pipeline again with legacy-compatible NumPy
+with open("final_pipeline_clean.pkl", "wb") as f:
+    pickle.dump(pipeline, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-# Step 3: Save cleaned model
-with open("final_pipelinegit.pkl", "wb") as f:
-    pickle.dump(model, f)
-
-print("✅ Model cleaned and re-saved successfully for deployment.")
+print("✅ Model re-saved without numpy BitGenerator issue.")

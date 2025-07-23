@@ -39,7 +39,7 @@ collection = chroma_client.get_or_create_collection(name="news_articles", embedd
 from features import text_length_func, unique_words_func, avg_word_length_func, sentence_count_func
 
 # Load your MLP pipeline
-with open("final_pipeline.pkl", "rb") as f:
+with open("final_pipeline_clean.pkl", "rb") as f:
     pipeline = pickle.load(f)
 
 def clean_text(text):
