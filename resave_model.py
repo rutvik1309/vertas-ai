@@ -1,23 +1,21 @@
 # resave_model.py
 
-from features import text_length_func, unique_words_func, avg_word_length_func, sentence_count_func
 import pickle
 import numpy as np
+from features import text_length_func, unique_words_func, avg_word_length_func, sentence_count_func
 
-# Load the model (trained using numpy 1.26.x)
+# Step 1: Load the old pickle (trained on NumPy < 2.0)
 with open("final_pipeline.pkl", "rb") as f:
     pipeline = pickle.load(f)
 
-# Remove MT19937 dependency (if stored in classifier's random_state)
-classifier = pipeline.named_steps["classifier"]
+# Step 2: Fix the random_state in the classifier if it's using MT19937
+classifier = pipeline.named_steps.get("classifier")
+if classifier and hasattr(classifier, "random_state") and hasattr(classifier.random_state, "bit_generator"):
+    print("⚙️ Replacing MT19937 with PCG64 to fix NumPy 2.0 incompatibility")
+    classifier.random_state = np.random.default_rng()
 
-# If using MLPClassifier with a random_state that references MT19937, replace it
-if hasattr(classifier, "random_state") and hasattr(classifier.random_state, "bit_generator"):
-    print("Replacing MT19937 with new default BitGenerator (PCG64)")
-    classifier.random_state = np.random.default_rng()  # compatible with NumPy 2.0
-
-# Save it to a new pickle file
+# Step 3: Save to a new cleaned pickle
 with open("final_pipeline_clean.pkl", "wb") as f:
     pickle.dump(pipeline, f)
 
-print("✅ Model re-saved safely with a compatible random generator.")
+print("✅ Model re-saved without MT19937 — ready for Render!")
