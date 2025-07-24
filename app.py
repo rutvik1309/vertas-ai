@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 import pickle
 import re
+import os
 from bs4 import BeautifulSoup
 import nltk
 from nltk.corpus import stopwords
@@ -22,17 +23,16 @@ stop_words = set(stopwords.words('english'))
 app = Flask("VeritasAI")
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Configure Gemini API
-genai.configure(api_key="AIzaSyA7APWpWr4LizACI9OBsJyunrVSnYkFNaA")
+# Configure Gemini API - use environment variable for security
+api_key = os.getenv('GEMINI_API_KEY', 'AIzaSyA7APWpWr4LizACI9OBsJyunrVSnYkFNaA')
+genai.configure(api_key=api_key)
 gemini_model = genai.GenerativeModel("models/gemini-2.0-flash-exp")
 
 # Connect to ChromaDB
 chroma_settings = Settings(is_persistent=False)
 
-
-
 chroma_client = Client(settings=chroma_settings)
-embedding_func = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key="AIzaSyA7APWpWr4LizACI9OBsJyunrVSnYkFNaA")
+embedding_func = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key=api_key)
 collection = chroma_client.get_or_create_collection(name="news_articles", embedding_function=embedding_func)
 
 # Custom feature functions (imported from features.py or defined inline)

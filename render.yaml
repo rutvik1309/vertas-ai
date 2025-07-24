@@ -4,3 +4,6 @@ services:
     env: docker
     dockerfilePath: ./dockerfile
     autoDeploy: true
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false

@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Prevent .pyc files and ensure logs are printed directly
 ENV PYTHONDONTWRITEBYTECODE=1
