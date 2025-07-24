@@ -10,8 +10,7 @@ document.getElementById("checkBtn").addEventListener("click", (event) => {
     if (url) formData.append("url", url);
     if (file) formData.append("file", file);
   
-    fetch("http://127.0.0.1:5005/classify", {  // 🔥 Correct port & endpoint
-      method: "POST",
+    fetch("http://127.0.0.1:5005/classify", { 
       body: formData
     })
     .then(res => res.json())

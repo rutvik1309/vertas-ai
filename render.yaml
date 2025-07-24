@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: vertas-ai
+    name: veritas-ai
     env: docker
     dockerfilePath: ./dockerfile
     autoDeploy: true

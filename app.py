@@ -19,7 +19,7 @@ nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
 
 # Initialize Flask app
-app = Flask("VertasAI")
+app = Flask("VeritasAI")
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Configure Gemini API
