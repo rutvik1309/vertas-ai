@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Context Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Context Fix Test</h1>
+    
+    <div class="test-section">
+        <h3>Test Scenario:</h3>
+        <ol>
+            <li>First article: Predict as <strong>Fake</strong></li>
+            <li>Second article: Predict as <strong>Real</strong></li>
+            <li>Ask for references → Should use <strong>Real</strong> article context</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h3>Step 1: Test First Article (Fake)</h3>
+        <button onclick="testFirstArticle()">Test Fake Article</button>
+        <div id="result1"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Step 2: Test Second Article (Real)</h3>
+        <button onclick="testSecondArticle()">Test Real Article</button>
+        <div id="result2"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Step 3: Test Context Usage</h3>
+        <button onclick="testContextUsage()">Ask for References</button>
+        <div id="result3"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Debug Info:</h3>
+        <button onclick="showDebugInfo()">Show Current Context</button>
+        <div id="debugInfo"></div>
+    </div>
+
+    <script>
+        let currentContext = null;
+        let testResults = [];
+        
+        async function testFirstArticle() {
+            const fakeArticle = "BREAKING: Scientists discover that drinking hot water with lemon cures all diseases! This revolutionary treatment has been hidden by big pharma for decades. Share this immediately!";
+            
+            try {
+                const response = await fetch('http://localhost:5005/', {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new FormData(Object.assign(new FormData(), { article_text: fakeArticle }))
+                });
+                
+                const result = await response.text();
+                
+                // Extract prediction
+                const predictionMatch = result.match(/<b>Prediction:<\/b> ([^<]+)/);
+                const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
+                
+                // Store context
+                currentContext = {
+                    article: fakeArticle,
+                    prediction: prediction,
+                    reasoning: result
+                };
+                
+                document.getElementById('result1').innerHTML = `
+                    <div class="success">
+                        <strong>✅ First Article Test:</strong><br>
+                        Prediction: ${prediction}<br>
+                        Context stored: ${currentContext ? 'Yes' : 'No'}
+                    </div>
+                `;
+                
+                testResults.push('First article tested successfully');
+                
+            } catch (error) {
+                document.getElementById('result1').innerHTML = `
+                    <div class="error">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function testSecondArticle() {
+            const realArticle = "NASA's Perseverance rover successfully landed on Mars on February 18, 2021. The rover is designed to search for signs of ancient life and collect samples for future return to Earth. This mission represents a significant step forward in Mars exploration.";
+            
+            try {
+                const response = await fetch('http://localhost:5005/', {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new FormData(Object.assign(new FormData(), { article_text: realArticle }))
+                });
+                
+                const result = await response.text();
+                
+                // Extract prediction
+                const predictionMatch = result.match(/<b>Prediction:<\/b> ([^<]+)/);
+                const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
+                
+                // Update context (this should replace the old context)
+                currentContext = {
+                    article: realArticle,
+                    prediction: prediction,
+                    reasoning: result
+                };
+                
+                document.getElementById('result2').innerHTML = `
+                    <div class="success">
+                        <strong>✅ Second Article Test:</strong><br>
+                        Prediction: ${prediction}<br>
+                        Context updated: ${currentContext ? 'Yes' : 'No'}<br>
+                        Current article: ${currentContext.article.substring(0, 50)}...
+                    </div>
+                `;
+                
+                testResults.push('Second article tested successfully');
+                
+            } catch (error) {
+                document.getElementById('result2').innerHTML = `
+                    <div class="error">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function testContextUsage() {
+            if (!currentContext) {
+                document.getElementById('result3').innerHTML = `
+                    <div class="error">
+                        <strong>❌ No context available:</strong> Please run the first two tests first.
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                const question = "Provide me with references for this article";
+                
+                const formData = new FormData();
+                formData.append('question', question);
+                formData.append('context_article', currentContext.article);
+                formData.append('context_reasoning', currentContext.reasoning);
+                
+                const response = await fetch('http://localhost:5005/ask', {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                const isCorrect = data.answer.toLowerCase().includes('mars') || 
+                                data.answer.toLowerCase().includes('nasa') ||
+                                data.answer.toLowerCase().includes('perseverance');
+                
+                document.getElementById('result3').innerHTML = `
+                    <div class="${isCorrect ? 'success' : 'error'}">
+                        <strong>${isCorrect ? '✅' : '❌'} Context Test:</strong><br>
+                        Question: ${question}<br>
+                        Answer: ${data.answer.substring(0, 200)}...<br>
+                        Using correct context: ${isCorrect ? 'Yes' : 'No'}<br>
+                        Expected: Mars/NASA/Perseverance references<br>
+                        Found: ${isCorrect ? 'Yes' : 'No'}
+                    </div>
+                `;
+                
+                testResults.push(`Context test: ${isCorrect ? 'PASSED' : 'FAILED'}`);
+                
+            } catch (error) {
+                document.getElementById('result3').innerHTML = `
+                    <div class="error">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function showDebugInfo() {
+            document.getElementById('debugInfo').innerHTML = `
+                <pre>
+Current Context: ${currentContext ? 'Available' : 'None'}
+${currentContext ? `
+Article: ${currentContext.article.substring(0, 100)}...
+Prediction: ${currentContext.prediction}
+` : ''}
+Test Results: ${testResults.join(', ')}
+                </pre>
+            `;
+        }
+    </script>
+</body>
+</html> 

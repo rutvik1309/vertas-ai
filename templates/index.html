@@ -2,39 +2,52 @@
 <html>
 <head>
     <title>Veritas AI</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f8f9fa; }
-        h1 { color: #333; }
-        .container { background: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .result { margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 6px; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='veritasai.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <meta charset="UTF-8">
 </head>
-<body>
-    <div class="container">
-        <h1>Upload News Article</h1>
-        <form action="/" method="post" enctype="multipart/form-data">
-            <label>Paste Article URL:</label>
-            <input type="url" name="article_url" placeholder="https://example.com/article" style="width:100%"><br><br>
-            <label>Or Upload Article File:</label>
-            <input type="file" name="file"><br><br>
-            <input type="submit" value="Predict">
-          </form>
-          
-
-        {% if prediction %}
-            <div class="result">
-                <h3>Prediction: {{ prediction }}</h3>
-                <p>Confidence: {{ confidence }}</p>
-            </div>
-        {% endif %}
-
-        {% if reasoning %}
-  <div class="output-box">
-    <h4>Gemini Reasoning & References:</h4>
-    <p>{{ reasoning|safe }}</p>
-  </div>
-{% endif %}
-
+<body class="theme-dark">
+    <div class="sidebar">
+        <img src="{{ url_for('static', filename='icon.png') }}" class="sidebar-logo" alt="Logo">
+        <button id="new-chat-btn" class="new-chat-btn">
+            <span>+</span> New Chat
+        </button>
+        <div id="conversations-list" class="conversations-list">
+            <!-- Conversations will be populated here -->
+        </div>
     </div>
+    <div class="main-content">
+        <header class="main-header">
+            <span class="brand">Veritas AI</span>
+            <div class="header-controls">
+                <div class="memory-indicator" id="memory-indicator" title="AI Learning Memory">
+                    <span class="memory-icon">🧠</span>
+                    <span class="memory-text">Learning...</span>
+                </div>
+                <button id="theme-toggle" title="Toggle theme">🌙</button>
+            </div>
+        </header>
+        
+        <div id="chat-container" class="chat-container">
+            <div id="chat-messages" class="chat-messages">
+                <!-- Messages will be populated here -->
+            </div>
+            
+            <div class="input-area">
+                <form id="chat-form" class="chat-form" onsubmit="return false;">
+                    <div class="input-row">
+                        <input type="text" id="user-input" placeholder="Ask about news or paste an article..." autocomplete="off">
+                        <input type="file" id="file-input" accept=".pdf,.doc,.docx,.txt,image/*,audio/*,video/*" style="display: none;">
+                        <button type="button" id="file-upload-btn" class="file-upload-btn" title="Upload file">📎</button>
+                        <button type="submit" id="send-btn">Send</button>
+                    </div>
+                    <div id="file-preview" class="file-preview">
+                        <!-- File preview will be shown here -->
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='veritasai.js', v='1.2') }}?t={{ range(1000000, 9999999) | random }}"></script>
 </body>
 </html>

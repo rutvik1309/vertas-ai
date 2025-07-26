@@ -1,6 +1,24 @@
 services:
   - type: web
-    name: veritas-ai
-    env: docker
-    dockerfilePath: ./dockerfile
+    name: veritas-ai-web
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEYS
+        sync: false
+      - key: DATABASE_URL
+        value: sqlite:///veritas_ai.db
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    healthCheckPath: /health
     autoDeploy: true
+    disk:
+      name: veritas-ai-data
+      mountPath: /opt/render/project/src
+      sizeGB: 1

@@ -1,42 +1,42 @@
-FROM python:3.10-slim
+# Use Python 3.11 slim image
+FROM python:3.11-slim
 
-# Prevent .pyc files and ensure logs are printed directly
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Install system dependencies required by your Python packages
-RUN apt-get update && apt-get install -y \
-    python3-dev \
-    libxml2-dev \
-    libxslt-dev \
-    libjpeg-dev \
-    zlib1g-dev \
-    libffi-dev \
-    libssl-dev \
-    build-essential \
-    poppler-utils \
-    gcc \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy dependency files first to leverage Docker layer caching
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    portaudio19-dev \
+    python3-pyaudio \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
 COPY requirements.txt .
-COPY nltk_setup.py .
 
 # Install Python dependencies
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Download NLTK data
-RUN python nltk_setup.py
-
-# Now copy the rest of the project files
+# Copy application code
 COPY . .
 
-# Expose the port the app runs on
+# Create necessary directories
+RUN mkdir -p /app/chroma_db
+RUN mkdir -p /app/static/uploads
+
+# Set environment variables
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=production
+ENV PYTHONPATH=/app
+
+# Expose port
 EXPOSE 5005
 
-# Run the app
+# Run the application
 CMD ["python", "app.py"]

@@ -1,27 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>VeritasAI</title>
-  <style>
-    body { font-family: Arial; padding: 15px; width: 300px; }
-    textarea { width: 100%; height: 150px; }
-    button { width: 100%; margin-top: 10px; }
-    .result { margin-top: 15px; padding: 10px; border-radius: 6px; background: #f0f0f0; }
-  </style>
+  <title>Veritas AI Extension</title>
+  <link rel="stylesheet" href="popup.css?v=1.3">
+  <script src="marked.min.js"></script>
+  <meta charset="UTF-8">
 </head>
-<body>
-  <h3>VeritasAI</h3>
-  <form onsubmit="return false;">
-    <textarea id="articleText" placeholder="Paste article text..."></textarea>
-    <br>
-    <input type="url" id="articleURL" placeholder="Or enter article URL..." style="width:100%">
-    <br><br>
-    <input type="file" id="fileInput" accept=".txt,.pdf,.jpg,.png,.mp3,.mp4">
-    <br><br>
-    <button type="button" id="checkBtn">Check Article</button>
-</form>
-  <div id="result" style="margin-top:15px;"></div>
-
-  <script src="popup.js"></script>
+<body class="theme-dark">
+  <div class="sidebar">
+    <img src="icon.png" class="sidebar-logo" alt="Logo">
+    <button id="new-chat-btn" class="new-chat-btn">
+      <span>+</span> New Chat
+    </button>
+    <div id="conversations-list" class="conversations-list">
+      <!-- Conversations will be populated here -->
+    </div>
+  </div>
+  <div class="main-content">
+    <header class="main-header">
+      <span class="brand">Veritas AI</span>
+      <div class="header-controls">
+        <div class="memory-indicator" id="memory-indicator" title="AI Learning Memory">
+          <span class="memory-icon">🧠</span>
+          <span class="memory-text">Learning...</span>
+        </div>
+        <button id="theme-toggle" title="Toggle theme">🌙</button>
+      </div>
+    </header>
+    
+    <div id="chat-container" class="chat-container">
+      <div id="chat-messages" class="chat-messages">
+        <!-- Messages will be populated here -->
+      </div>
+      
+                  <div class="input-area">
+                <form id="chat-form" class="chat-form" onsubmit="return false;">
+                    <div class="input-row">
+                        <input type="text" id="user-input" placeholder="Ask about news or paste an article..." autocomplete="off">
+                        <input type="file" id="file-input" accept=".pdf,.doc,.docx,.txt,image/*,audio/*,video/*" style="display: none;">
+                        <button type="button" id="file-upload-btn" class="file-upload-btn" title="Upload file">📎</button>
+                        <button type="submit" id="send-btn">Send</button>
+                    </div>
+                    <div id="file-preview" class="file-preview">
+                        <!-- File preview will be shown here -->
+                    </div>
+                </form>
+            </div>
+    </div>
+  </div>
+  <script src="popup.js?v=1.3"></script>
 </body>
 </html>

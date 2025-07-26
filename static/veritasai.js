@@ -1,10 +1,3 @@
-// Extension version for cache busting
-const EXTENSION_VERSION = '1.3';
-
-// Backend URL configuration - update this for production
-const BACKEND_URL = 'https://your-app-name.onrender.com'; // Update with your Render URL
-// const BACKEND_URL = 'http://127.0.0.1:5005'; // For local development
-
 // Global variables
 let conversations = [];
 let currentConversationId = null;
@@ -22,7 +15,6 @@ const sendBtn = document.getElementById('send-btn');
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('🚀 Veritas AI Extension v' + EXTENSION_VERSION + ' loaded');
   loadConversations();
   createNewConversation();
   setupEventListeners();
@@ -38,24 +30,11 @@ function setupEventListeners() {
   userInput.addEventListener('keydown', handleKeyDown);
   
   // File upload functionality
-  const fileUploadBtn = document.getElementById('file-upload-btn');
-  const fileInput = document.getElementById('file-input');
+  document.getElementById('file-upload-btn').addEventListener('click', () => {
+    document.getElementById('file-input').click();
+  });
   
-  if (fileUploadBtn && fileInput) {
-    fileUploadBtn.addEventListener('click', () => {
-      console.log('📎 File upload button clicked');
-      fileInput.click();
-    });
-    
-    fileInput.addEventListener('change', (e) => {
-      console.log('📁 File input change event triggered');
-      handleFileSelect(e);
-    });
-    
-    console.log('✅ File upload event listeners set up successfully');
-  } else {
-    console.error('❌ File upload elements not found:', { fileUploadBtn, fileInput });
-  }
+  document.getElementById('file-input').addEventListener('change', handleFileSelect);
 }
 
 // Theme toggle functionality
@@ -70,43 +49,16 @@ function setupThemeToggle() {
   }
 }
 
-// Load conversations from storage
+// Load conversations from localStorage
 function loadConversations() {
-  try {
-    // Clear old conversations to force fresh start with new web search functionality
-    console.log('🔄 Clearing old conversations for fresh web search functionality');
-    
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.remove(['conversations'], function() {
-        console.log('✅ Old conversations cleared from Chrome storage');
-        conversations = [];
-        renderConversationsList();
-      });
-    } else {
-      console.warn('Chrome storage API not available, using localStorage fallback');
-      localStorage.removeItem('veritas_conversations');
-      conversations = [];
-      renderConversationsList();
-    }
-  } catch (error) {
-    console.error('Error loading conversations:', error);
-    conversations = [];
-    renderConversationsList();
-  }
+  const stored = localStorage.getItem('veritas_conversations');
+  conversations = stored ? JSON.parse(stored) : [];
+  renderConversationsList();
 }
 
-// Save conversations to storage
+// Save conversations to localStorage
 function saveConversations() {
-  try {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ conversations: conversations });
-  } else {
-      console.warn('Chrome storage API not available, using localStorage fallback');
-      localStorage.setItem('veritas_conversations', JSON.stringify(conversations));
-    }
-  } catch (error) {
-    console.error('Error saving conversations:', error);
-  }
+  localStorage.setItem('veritas_conversations', JSON.stringify(conversations));
 }
 
 // Create a new conversation
@@ -121,6 +73,8 @@ function createNewConversation() {
   
   conversations.unshift(newConversation);
   currentConversationId = conversationId;
+  
+  // Clear any existing context for new conversation
   currentContext = null;
   
   saveConversations();
@@ -133,35 +87,21 @@ function createNewConversation() {
 function switchConversation(conversationId) {
   currentConversationId = conversationId;
   
-  // Clear current context first to prevent old context from being used
+  // Clear current context first
   currentContext = null;
   
   const conversation = conversations.find(c => c.id === conversationId);
   if (conversation) {
-    // First check if there's stored context in the conversation
-    if (conversation.context) {
-      currentContext = conversation.context;
-    } else {
-      // Extract the latest prediction context from messages
-      const predictionMessage = conversation.messages.find(m => m.type === 'prediction');
-      if (predictionMessage) {
-        currentContext = {
-          article: predictionMessage.article,
-          reasoning: predictionMessage.reasoning,
-          references: predictionMessage.references
-        };
-      } else {
-        // Clear context if no prediction found
-        currentContext = null;
-      }
+    // Extract the latest prediction context from messages
+    const predictionMessage = conversation.messages.find(m => m.type === 'prediction');
+    if (predictionMessage) {
+      currentContext = {
+        article: predictionMessage.article,
+        reasoning: predictionMessage.reasoning,
+        references: predictionMessage.references
+      };
     }
   }
-  
-  console.log('🔄 Switched conversation:', {
-    conversationId,
-    hasContext: !!currentContext,
-    contextArticle: currentContext ? currentContext.article.substring(0, 100) + '...' : 'None'
-  });
   
   renderConversationsList();
   renderChatMessages();
@@ -253,14 +193,9 @@ function renderConversationsList() {
 
 // Render chat messages
 function renderChatMessages() {
-  console.log('Rendering chat messages');
   const conversation = conversations.find(c => c.id === currentConversationId);
-  if (!conversation) {
-    console.error('No conversation found for rendering');
-    return;
-  }
+  if (!conversation) return;
   
-  console.log('Rendering', conversation.messages.length, 'messages');
   chatMessages.innerHTML = '';
   
   if (conversation.messages.length === 0) {
@@ -275,7 +210,6 @@ function renderChatMessages() {
   }
   
   chatMessages.scrollTop = chatMessages.scrollHeight;
-  console.log('Chat messages rendered successfully');
 }
 
 // Create a message element
@@ -326,16 +260,13 @@ function createMessageElement(message) {
 
 // Handle chat form submission
 async function handleChatSubmit(e) {
-  console.log('handleChatSubmit called');
   e.preventDefault();
   e.stopPropagation();
   
   const input = userInput.value.trim();
-  console.log('Input:', input, 'SelectedFile:', selectedFile);
   
   // Check for file upload first
   if (selectedFile) {
-    console.log('Processing file upload');
     await handleFilePrediction();
     return false;
   }
@@ -365,9 +296,8 @@ async function handleChatSubmit(e) {
 
 // Handle prediction request
 async function handlePredictionRequest(input) {
-  console.log('handlePredictionRequest called with input:', input);
   try {
-  const formData = new FormData();
+    const formData = new FormData();
     
     if (input.includes('http')) {
       formData.append('article_url', input);
@@ -375,10 +305,9 @@ async function handlePredictionRequest(input) {
       formData.append('article_text', input);
     }
     
-    const response = await fetch(BACKEND_URL + '/', {
+    const response = await fetch('/', {
       method: 'POST',
       body: formData,
-      credentials: 'include',
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
     
@@ -388,50 +317,101 @@ async function handlePredictionRequest(input) {
     
     const result = await response.text();
     
-    // Parse the result to extract components
-    const predictionMatch = result.match(/<b>Prediction:<\/b> ([^<]+)/);
-    const confidenceMatch = result.match(/<b>Confidence:<\/b> ([^<]+)/);
-    const reasoningMatch = result.match(/<b>Reasoning:<\/b> (.+?)(?=<br><b>|$)/s);
-    const originalNewsMatch = result.match(/<b>Original News:<\/b><p[^>]*>([^<]+)<\/p>/);
-    const redFlagsMatch = result.match(/<b>Red Flags:<\/b><ul[^>]*>(.*?)<\/ul>/s);
-    
-    const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
-    const confidence = confidenceMatch ? confidenceMatch[1] : 'Unknown';
-    const reasoning = reasoningMatch ? reasoningMatch[1] : 'No reasoning available';
-    const originalNews = originalNewsMatch ? originalNewsMatch[1] : '';
-    const redFlags = redFlagsMatch ? redFlagsMatch[1].replace(/<[^>]+>/g, '').trim() : '';
-    
-          // Store context for future chat - this replaces any previous context
+    // Check if this is a simple HTML response (from AJAX) or full page
+    if (result.includes('<b>Prediction:</b>')) {
+      // Simple HTML response from AJAX
+      const predictionMatch = result.match(/<b>Prediction:<\/b> ([^<]+)/);
+      const confidenceMatch = result.match(/<b>Confidence:<\/b> ([^<]+)/);
+      const reasoningMatch = result.match(/<b>Reasoning:<\/b> (.+?)(?=<br><b>|$)/s);
+      const originalNewsMatch = result.match(/<b>Original News:<\/b><p[^>]*>([^<]+)<\/p>/);
+      const redFlagsMatch = result.match(/<b>Red Flags:<\/b><ul[^>]*>(.*?)<\/ul>/s);
+      
+      const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
+      const confidence = confidenceMatch ? confidenceMatch[1] : 'Unknown';
+      const reasoning = reasoningMatch ? reasoningMatch[1] : 'No reasoning available';
+      const originalNews = originalNewsMatch ? originalNewsMatch[1] : '';
+      const redFlags = redFlagsMatch ? redFlagsMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+      
+      // Clear any old context and store new context for future chat
       currentContext = {
         article: input,
         reasoning: reasoning,
-        references: extractReferences(result),
-        originalNews: originalNews,
-        redFlags: redFlags
+        references: extractReferences(result)
       };
       
-      console.log('🔄 Updated currentContext with new prediction:', {
+      // Add prediction message
+      addMessage('prediction', '', {
         prediction,
-        article: input.substring(0, 100) + '...',
-        hasReferences: currentContext.references.length > 0
+        confidence,
+        reasoning,
+        article: input,
+        references: currentContext.references,
+        originalNews: originalNews,
+        redFlags: redFlags
       });
-    
-    // Add prediction message
-    addMessage('prediction', '', {
-      prediction,
-      confidence,
-      reasoning,
-      article: input,
-      references: currentContext.references,
-      originalNews: originalNews,
-      redFlags: redFlags
-    });
-    
-    // Update the conversation's context for future reference
-    const conversation = conversations.find(c => c.id === currentConversationId);
-    if (conversation) {
-      conversation.context = currentContext;
-      saveConversations();
+      
+    } else {
+      // Full page response - extract data from the rendered page
+      const predictionMatch = result.match(/<h3>Prediction: ([^<]+)<\/h3>/);
+      const confidenceMatch = result.match(/<p><strong>🧠 Confidence Score:<\/strong> ([^<]+)<\/p>/);
+      
+      // Extract reasoning sections
+      const summaryMatch = result.match(/<h5>🧠 Reasoning Summary:<\/h5>\s*<p[^>]*>([^<]+)<\/p>/);
+      const breakdownMatches = result.match(/<li[^>]*>([^<]+)<\/li>/g);
+      const supportingMatches = result.match(/<li[^>]*>([^<]+)<\/li>/g);
+      const finalJudgmentMatch = result.match(/<h5>🧾 Final Judgment:<\/h5>\s*<p[^>]*>([^<]+)<\/p>/);
+      
+      // Extract references
+      const referenceMatches = result.match(/<a href="([^"]+)" target="_blank">[^<]+<\/a>/g);
+      
+      const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
+      const confidence = confidenceMatch ? confidenceMatch[1] : 'Unknown';
+      
+      // Build reasoning text
+      let reasoning = '';
+      if (summaryMatch) reasoning += `Summary: ${summaryMatch[1]}\n\n`;
+      if (breakdownMatches) {
+        reasoning += 'Key Points:\n';
+        breakdownMatches.forEach(match => {
+          const content = match.replace(/<[^>]+>/g, '').trim();
+          if (content) reasoning += `• ${content}\n`;
+        });
+        reasoning += '\n';
+      }
+      if (supportingMatches) {
+        reasoning += 'Supporting Details:\n';
+        supportingMatches.forEach(match => {
+          const content = match.replace(/<[^>]+>/g, '').trim();
+          if (content) reasoning += `• ${content}\n`;
+        });
+        reasoning += '\n';
+      }
+      if (finalJudgmentMatch) reasoning += `Final Judgment: ${finalJudgmentMatch[1]}`;
+      
+      // Extract references
+      const references = [];
+      if (referenceMatches) {
+        referenceMatches.forEach(match => {
+          const hrefMatch = match.match(/href="([^"]+)"/);
+          if (hrefMatch) references.push(hrefMatch[1]);
+        });
+      }
+      
+      // Clear any old context and store new context for future chat
+      currentContext = {
+        article: input,
+        reasoning: reasoning,
+        references: references
+      };
+      
+      // Add prediction message
+      addMessage('prediction', '', {
+        prediction,
+        confidence,
+        reasoning,
+        article: input,
+        references: currentContext.references
+      });
     }
     
     // Update conversation title
@@ -444,7 +424,6 @@ async function handlePredictionRequest(input) {
 
 // Handle file prediction
 async function handleFilePrediction() {
-  console.log('handleFilePrediction called, selectedFile:', selectedFile);
   if (!selectedFile) return;
   
   // Wait for file content to be loaded if it's not ready yet
@@ -489,10 +468,9 @@ async function handleFilePrediction() {
     const formData = new FormData();
     formData.append('file', selectedFile);
     
-    const response = await fetch(BACKEND_URL + '/', {
+    const response = await fetch('/', {
       method: 'POST',
       body: formData,
-      credentials: 'include',
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
     
@@ -516,7 +494,7 @@ async function handleFilePrediction() {
       const originalNews = originalNewsMatch ? originalNewsMatch[1] : '';
       const redFlags = redFlagsMatch ? redFlagsMatch[1].replace(/<[^>]+>/g, '').trim() : '';
       
-      // Store context for future chat
+      // Clear any old context and store new context for future chat
       currentContext = {
         article: selectedFileContent || `File: ${selectedFile.name}`,
         reasoning: reasoning,
@@ -547,13 +525,6 @@ async function handleFilePrediction() {
         originalNews: originalNews,
         redFlags: redFlags
       });
-      
-      // Update the conversation's context for future reference
-      const conversation = conversations.find(c => c.id === currentConversationId);
-      if (conversation) {
-        conversation.context = currentContext;
-        saveConversations();
-      }
       
       // Update conversation title
       updateConversationTitle(`File: ${selectedFile.name}`);
@@ -594,36 +565,26 @@ async function handleChatQuestion(question) {
     formData.append('full_conversation', fullConversation);
     formData.append('timestamp', new Date().toISOString());
     
-    // Add context if available - prioritize currentContext (most recent prediction) over conversation.context
-    const contextToUse = currentContext || conversation.context;
-    
-    console.log('💬 Using context for chat question:', {
-      hasCurrentContext: !!currentContext,
-      hasConversationContext: !!conversation.context,
-      contextSource: currentContext ? 'currentContext (most recent)' : 'conversation.context (old)',
-      contextArticle: contextToUse ? contextToUse.article.substring(0, 100) + '...' : 'None'
-    });
-    
-    if (contextToUse) {
+    // Add context if available
+    if (currentContext) {
       console.log('Sending context to backend:', {
-        hasArticle: !!contextToUse.article,
-        articleLength: contextToUse.article ? contextToUse.article.length : 0,
-        articlePreview: contextToUse.article ? contextToUse.article.substring(0, 100) + '...' : 'None'
+        hasArticle: !!currentContext.article,
+        articleLength: currentContext.article ? currentContext.article.length : 0,
+        articlePreview: currentContext.article ? currentContext.article.substring(0, 100) + '...' : 'None'
       });
       
-      formData.append('context_article', contextToUse.article || '');
-      formData.append('context_reasoning', contextToUse.reasoning || '');
-      formData.append('context_references', JSON.stringify(contextToUse.references || []));
-      formData.append('context_original_news', contextToUse.originalNews || '');
-      formData.append('context_red_flags', JSON.stringify(contextToUse.redFlags || []));
+      formData.append('context_article', currentContext.article);
+      formData.append('context_reasoning', currentContext.reasoning);
+      formData.append('context_references', JSON.stringify(currentContext.references));
+      formData.append('context_original_news', currentContext.originalNews || '');
+      formData.append('context_red_flags', JSON.stringify(currentContext.redFlags || []));
     } else {
       console.log('No context available for chat question');
     }
     
-    const response = await fetch(BACKEND_URL + '/ask', {
+    const response = await fetch('/ask', {
       method: 'POST',
       body: formData,
-      credentials: 'include',
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
     
@@ -646,12 +607,8 @@ async function handleChatQuestion(question) {
 
 // Add a message to the current conversation
 function addMessage(type, content, extraData = {}) {
-  console.log('Adding message:', { type, content, extraData });
   const conversation = conversations.find(c => c.id === currentConversationId);
-  if (!conversation) {
-    console.error('No conversation found for currentConversationId:', currentConversationId);
-    return;
-  }
+  if (!conversation) return;
   
   const message = {
     type,
@@ -663,7 +620,6 @@ function addMessage(type, content, extraData = {}) {
   conversation.messages.push(message);
   saveConversations();
   renderChatMessages();
-  console.log('Message added successfully');
 }
 
 // Update conversation title
@@ -698,7 +654,6 @@ function handleInputChange() {
 
 // File handling functions
 function handleFileSelect(e) {
-  console.log('File selected:', e.target.files[0]);
   const file = e.target.files[0];
   if (!file) return;
   
@@ -710,19 +665,16 @@ function handleFileSelect(e) {
   reader.onload = function(e) {
     selectedFileContent = e.target.result;
     console.log('File content loaded, length:', selectedFileContent.length);
-    console.log('File content preview:', selectedFileContent.substring(0, 100) + '...');
+    console.log('File content preview:', selectedFileContent.substring(0, 200) + '...');
+  };
+  reader.onerror = function(e) {
+    console.error('Error reading file:', e);
   };
   reader.readAsText(file);
 }
 
 function showFilePreview(file) {
-  console.log('Showing file preview for:', file.name);
   const preview = document.getElementById('file-preview');
-  if (!preview) {
-    console.error('File preview element not found');
-    return;
-  }
-  
   preview.innerHTML = '';
   
   const fileInfo = document.createElement('div');
@@ -746,25 +698,26 @@ function removeFile() {
   document.getElementById('file-preview').classList.remove('show');
 }
 
+// Handle key down (Enter to send, Shift+Enter for new line)
+function handleKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    handleChatSubmit(e);
+    return false;
+  }
+}
+
 
 
 // Memory indicator functions
 async function updateMemoryIndicator() {
   try {
-    const response = await fetch(BACKEND_URL + '/memory/stats');
+    const response = await fetch('/memory/stats');
     const stats = await response.json();
     
     const indicator = document.getElementById('memory-indicator');
-    if (!indicator) {
-      console.warn('Memory indicator element not found');
-      return;
-    }
-    
     const text = indicator.querySelector('.memory-text');
-    if (!text) {
-      console.warn('Memory text element not found');
-      return;
-    }
     
     if (stats.total_conversations > 0) {
       text.textContent = `Learned from ${stats.total_conversations} conversations`;
@@ -775,14 +728,6 @@ async function updateMemoryIndicator() {
     }
   } catch (error) {
     console.log('Could not fetch memory stats:', error);
-    // Set default text if fetch fails
-    const indicator = document.getElementById('memory-indicator');
-    if (indicator) {
-      const text = indicator.querySelector('.memory-text');
-      if (text) {
-        text.textContent = 'Ready to learn...';
-      }
-    }
   }
 }
 
@@ -797,16 +742,6 @@ function hideLearningIndicator() {
   setTimeout(() => {
     updateMemoryIndicator();
   }, 1000);
-}
-
-// Handle key down (Enter to send, Shift+Enter for new line)
-function handleKeyDown(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    e.stopPropagation();
-    handleChatSubmit(e);
-    return false;
-  }
 }
 
 // Create a simple message (for welcome message)
@@ -825,53 +760,4 @@ function createMessage(type, content) {
   messageDiv.appendChild(avatar);
   messageDiv.appendChild(contentDiv);
   return messageDiv;
-}
-
-// Initialize the extension when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('Extension initializing...');
-  
-  try {
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Setup theme toggle
-    setupThemeToggle();
-    
-    // Load conversations
-    loadConversations();
-    
-    // Create initial conversation if none exist
-    if (conversations.length === 0) {
-      createNewConversation();
-    }
-    
-    // Update memory indicator
-    updateMemoryIndicator();
-    
-    console.log('Extension initialized successfully');
-  } catch (error) {
-    console.error('Error during extension initialization:', error);
-  }
-});
-
-// Also try to initialize immediately if DOM is already loaded
-if (document.readyState === 'loading') {
-  // DOM is still loading, wait for DOMContentLoaded
-} else {
-  // DOM is already loaded, initialize immediately
-  console.log('DOM already loaded, initializing immediately...');
-  try {
-    setupEventListeners();
-    setupThemeToggle();
-    loadConversations();
-    if (conversations.length === 0) {
-      createNewConversation();
-    }
-    updateMemoryIndicator();
-    console.log('Extension initialized successfully (immediate)');
-  } catch (error) {
-    console.error('Error during immediate initialization:', error);
-  }
-}
-  
+} 
