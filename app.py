@@ -287,6 +287,16 @@ from features import text_length_func, unique_words_func, avg_word_length_func, 
 
 # Load your MLP pipeline
 try:
+    import pickle
+    import numpy as np
+    
+    # Fix NumPy compatibility issues
+    if not hasattr(np, 'float_'):
+        np.float_ = np.float64
+    if not hasattr(np, 'int_'):
+        np.int_ = np.int64
+    
+    # Try to load the model with error handling
     with open("final_pipeline_clean.pkl", "rb") as f:
         pipeline = pickle.load(f)
     print("✅ MLP pipeline loaded successfully")

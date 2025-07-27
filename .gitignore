@@ -47,14 +47,8 @@ resaveenv/
 *.sqlite3
 veritas_ai.db
 
-# Model files (exclude large ones but allow essential ones)
+# Model files (exclude all pickle files)
 *.pkl
-!final_pipeline_clean.pkl
-!final_pipeline.pkl
-!model.pkl
-!improved_tfidf.pkl
-!improved_mlp_model.pkl
-!tfidf_vectorizer.pkl
 
 # Logs
 *.log
