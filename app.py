@@ -286,26 +286,51 @@ load_conversation_memory()
 from features import text_length_func, unique_words_func, avg_word_length_func, sentence_count_func
 
 # Load your MLP pipeline
+print("🔍 Starting model loading process...")
 try:
     import pickle
     import numpy as np
+    import os
+    
+    print(f"📁 Current working directory: {os.getcwd()}")
+    print(f"📂 Checking for model files...")
+    
+    # Check if model files exist
+    if os.path.exists("final_pipeline_clean_fixed.pkl"):
+        print("✅ Found final_pipeline_clean_fixed.pkl")
+    else:
+        print("❌ final_pipeline_clean_fixed.pkl not found")
+    
+    if os.path.exists("final_pipeline_clean.pkl"):
+        print("✅ Found final_pipeline_clean.pkl")
+    else:
+        print("❌ final_pipeline_clean.pkl not found")
     
     # Fix NumPy compatibility issues
     if not hasattr(np, 'float_'):
         np.float_ = np.float64
+        print("✅ Added np.float_ = np.float64")
     if not hasattr(np, 'int_'):
         np.int_ = np.int64
+        print("✅ Added np.int_ = np.int64")
     
     # Try to load the fixed model first
     try:
+        print("🔄 Attempting to load fixed model...")
         with open("final_pipeline_clean_fixed.pkl", "rb") as f:
             pipeline = pickle.load(f)
         print("✅ Fixed MLP pipeline loaded successfully")
-    except:
+    except Exception as e1:
+        print(f"❌ Failed to load fixed model: {e1}")
         # Fallback to original model
-        with open("final_pipeline_clean.pkl", "rb") as f:
-            pipeline = pickle.load(f)
-        print("✅ Original MLP pipeline loaded successfully")
+        try:
+            print("🔄 Attempting to load original model...")
+            with open("final_pipeline_clean.pkl", "rb") as f:
+                pipeline = pickle.load(f)
+            print("✅ Original MLP pipeline loaded successfully")
+        except Exception as e2:
+            print(f"❌ Failed to load original model: {e2}")
+            raise e2
         
 except Exception as e:
     print(f"❌ Error loading MLP pipeline: {e}")
