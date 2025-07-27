@@ -292,8 +292,22 @@ try:
     print("✅ MLP pipeline loaded successfully")
 except Exception as e:
     print(f"❌ Error loading MLP pipeline: {e}")
-    print("⚠️  Falling back to basic prediction logic")
+    print("⚠️  Model compatibility issue - will use basic prediction logic")
     pipeline = None
+    
+    # Try to load alternative model files
+    try:
+        with open("model.pkl", "rb") as f:
+            pipeline = pickle.load(f)
+            print("✅ Alternative model loaded successfully")
+    except:
+        try:
+            with open("final_pipeline.pkl", "rb") as f:
+                pipeline = pickle.load(f)
+                print("✅ Fallback model loaded successfully")
+        except:
+            print("⚠️  All model files failed to load - using basic logic")
+            pipeline = None
 
 def clean_text(text):
     text = BeautifulSoup(text, "html.parser").get_text()
