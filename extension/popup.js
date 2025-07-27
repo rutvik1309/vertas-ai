@@ -2,7 +2,7 @@
 const EXTENSION_VERSION = '1.3';
 
 // Backend URL configuration - update this for production
-const BACKEND_URL = 'https://your-app-name.onrender.com'; // Update with your Render URL
+const BACKEND_URL = 'https://vertas-ai.onrender.com'; // Production Render URL
 // const BACKEND_URL = 'http://127.0.0.1:5005'; // For local development
 
 // Global variables
