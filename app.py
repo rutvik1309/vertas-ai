@@ -296,28 +296,21 @@ try:
     if not hasattr(np, 'int_'):
         np.int_ = np.int64
     
-    # Try to load the model with error handling
-    with open("final_pipeline_clean.pkl", "rb") as f:
-        pipeline = pickle.load(f)
-    print("✅ MLP pipeline loaded successfully")
+    # Try to load the fixed model first
+    try:
+        with open("final_pipeline_clean_fixed.pkl", "rb") as f:
+            pipeline = pickle.load(f)
+        print("✅ Fixed MLP pipeline loaded successfully")
+    except:
+        # Fallback to original model
+        with open("final_pipeline_clean.pkl", "rb") as f:
+            pipeline = pickle.load(f)
+        print("✅ Original MLP pipeline loaded successfully")
+        
 except Exception as e:
     print(f"❌ Error loading MLP pipeline: {e}")
     print("⚠️  Model compatibility issue - will use basic prediction logic")
     pipeline = None
-    
-    # Try to load alternative model files
-    try:
-        with open("model.pkl", "rb") as f:
-            pipeline = pickle.load(f)
-            print("✅ Alternative model loaded successfully")
-    except:
-        try:
-            with open("final_pipeline.pkl", "rb") as f:
-                pipeline = pickle.load(f)
-                print("✅ Fallback model loaded successfully")
-        except:
-            print("⚠️  All model files failed to load - using basic logic")
-            pipeline = None
 
 def clean_text(text):
     text = BeautifulSoup(text, "html.parser").get_text()
