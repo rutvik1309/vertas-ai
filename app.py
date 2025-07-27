@@ -286,8 +286,14 @@ load_conversation_memory()
 from features import text_length_func, unique_words_func, avg_word_length_func, sentence_count_func
 
 # Load your MLP pipeline
-with open("final_pipeline_clean.pkl", "rb") as f:
-    pipeline = pickle.load(f)
+try:
+    with open("final_pipeline_clean.pkl", "rb") as f:
+        pipeline = pickle.load(f)
+    print("✅ MLP pipeline loaded successfully")
+except Exception as e:
+    print(f"❌ Error loading MLP pipeline: {e}")
+    print("⚠️  Falling back to basic prediction logic")
+    pipeline = None
 
 def clean_text(text):
     text = BeautifulSoup(text, "html.parser").get_text()
