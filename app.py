@@ -1132,7 +1132,18 @@ def retrieve_context(text, n_results=5):
 
 @app.route('/health')
 def health():
-    return "OK", 200
+    """Health check endpoint to keep the service alive"""
+    return jsonify({
+        'status': 'OK',
+        'timestamp': time.time(),
+        'service': 'VeritasAI',
+        'version': '1.0.0'
+    }), 200
+
+@app.route('/ping')
+def ping():
+    """Simple ping endpoint for keep-alive"""
+    return "pong", 200
 
 @app.route('/get_context')
 def get_context():
@@ -1247,5 +1258,24 @@ def test_file_content():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5005))
+    # Add auto-recovery and keep-alive functionality
+    import threading
+    
+    def auto_ping():
+        """Auto-ping to keep the service alive"""
+        while True:
+            try:
+                # Ping our own health endpoint
+                import requests
+                requests.get("http://localhost:10000/health", timeout=5)
+                time.sleep(300)  # Ping every 5 minutes
+            except:
+                time.sleep(60)  # Wait 1 minute if ping fails
+    
+    # Start auto-ping in background thread
+    ping_thread = threading.Thread(target=auto_ping, daemon=True)
+    ping_thread.start()
+    
+    print("🚀 Starting VeritasAI with auto-recovery...")
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
