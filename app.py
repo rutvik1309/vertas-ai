@@ -451,10 +451,14 @@ def add_cors_headers(response):
     
     return response
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST', 'HEAD'])
 def index():
     prediction, confidence, reasoning_output = None, None, None
     article_text = None
+
+    if request.method == 'HEAD':
+        # Handle HEAD requests (browser preflight checks)
+        return '', 200
 
     if request.method == 'GET':
         session['last_article_text'] = None
@@ -770,18 +774,23 @@ IMPORTANT: Respond ONLY with valid JSON, no markdown formatting, no code blocks.
             
             return f"<b>Prediction:</b> {label_map[prediction]}<br><b>Confidence:</b> {round(float(confidence), 4)}<br><b>Reasoning:</b> {reasoning_html}{original_news_html}{red_flags_html}{references_html}"
 
-        return render_template(
-            'index.html',
-            prediction=label_map[prediction],
-            confidence=round(float(confidence), 4),
-            summary=summary,
-            breakdown=breakdown,
-            supporting=supporting,
-            final_judgment=final_judgment,
-            references=references_output,
-            original_news=original_news,
-            red_flags=red_flags
-        )
+        try:
+            return render_template(
+                'index.html',
+                prediction=label_map[prediction],
+                confidence=round(float(confidence), 4),
+                summary=summary,
+                breakdown=breakdown,
+                supporting=supporting,
+                final_judgment=final_judgment,
+                references=references_output,
+                original_news=original_news,
+                red_flags=red_flags
+            )
+        except Exception as e:
+            print(f"❌ Error rendering template: {e}")
+            # Fallback response
+            return render_template('index.html', prediction="Error processing request")
 
 
 @app.route('/classify', methods=['POST'])
