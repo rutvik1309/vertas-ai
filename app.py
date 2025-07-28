@@ -479,7 +479,74 @@ def index():
                 return render_template('index.html', prediction=f"Failed to fetch article: {e}")
 
         elif file:
-            text = file.read().decode("utf-8")
+            # Handle different file types
+            filename = file.filename.lower()
+            if filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+                # Handle image files
+                try:
+                    image = Image.open(file.stream)
+                    text = pytesseract.image_to_string(image)
+                except Exception as e:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': f'Failed to process image: {str(e)}'}), 500
+                    return render_template('index.html', prediction=f"Failed to process image: {str(e)}")
+            elif filename.endswith(('.mp3', '.wav', '.m4a', '.flac')):
+                # Handle audio files
+                try:
+                    recognizer = sr.Recognizer()
+                    with sr.AudioFile(file) as source:
+                        audio_data = recognizer.record(source)
+                        text = recognizer.recognize_google(audio_data)
+                except Exception as e:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': f'Failed to process audio: {str(e)}'}), 500
+                    return render_template('index.html', prediction=f"Failed to process audio: {str(e)}")
+            elif filename.endswith(('.mp4', '.avi', '.mov', '.mkv')):
+                # Handle video files
+                try:
+                    # Extract audio from video and convert to text
+                    import tempfile
+                    import os
+                    
+                    # Save video to temp file
+                    temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+                    file.save(temp_video.name)
+                    temp_video.close()
+                    
+                    # Extract audio using moviepy
+                    from moviepy.editor import VideoFileClip
+                    video = VideoFileClip(temp_video.name)
+                    temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+                    video.audio.write_audiofile(temp_audio.name, verbose=False, logger=None)
+                    video.close()
+                    
+                    # Convert audio to text
+                    recognizer = sr.Recognizer()
+                    with sr.AudioFile(temp_audio.name) as source:
+                        audio_data = recognizer.record(source)
+                        text = recognizer.recognize_google(audio_data)
+                    
+                    # Clean up temp files
+                    os.unlink(temp_video.name)
+                    os.unlink(temp_audio.name)
+                    
+                except Exception as e:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': f'Failed to process video: {str(e)}'}), 500
+                    return render_template('index.html', prediction=f"Failed to process video: {str(e)}")
+            else:
+                # Handle text files
+                try:
+                    text = file.read().decode("utf-8")
+                except UnicodeDecodeError:
+                    # Try different encodings
+                    file.seek(0)  # Reset file pointer
+                    try:
+                        text = file.read().decode("latin-1")
+                    except:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'error': 'Failed to decode file content'}), 500
+                        return render_template('index.html', prediction="Failed to decode file content")
 
         if not text:
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
