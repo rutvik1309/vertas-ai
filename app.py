@@ -287,6 +287,31 @@ from features import text_length_func, unique_words_func, avg_word_length_func, 
 
 # Load your MLP pipeline
 print("🔍 Starting model loading process...")
+
+# Check for system dependencies
+def check_system_dependencies():
+    """Check if required system dependencies are available"""
+    import subprocess
+    import shutil
+    
+    dependencies = {
+        'tesseract': 'OCR for image processing',
+        'ffmpeg': 'Video/audio processing'
+    }
+    
+    missing = []
+    for dep, desc in dependencies.items():
+        if shutil.which(dep) is None:
+            missing.append(f"{dep} ({desc})")
+    
+    if missing:
+        print(f"⚠️  Missing system dependencies: {', '.join(missing)}")
+        print("📝 Some file processing features may not work properly")
+    else:
+        print("✅ All system dependencies are available")
+
+check_system_dependencies()
+
 try:
     import pickle
     import numpy as np
@@ -488,8 +513,18 @@ def index():
             if filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
                 # Handle image files
                 try:
-                    image = Image.open(file.stream)
-                    text = pytesseract.image_to_string(image)
+                    # Check if pytesseract is available
+                    try:
+                        import pytesseract
+                        from PIL import Image
+                        image = Image.open(file.stream)
+                        text = pytesseract.image_to_string(image)
+                        if not text.strip():
+                            text = "Image processed but no text was extracted. Please provide a clearer image or use text input."
+                    except ImportError:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'error': 'OCR (pytesseract) is not available on this server. Please use text input instead.'}), 500
+                        return render_template('index.html', prediction="OCR (pytesseract) is not available on this server. Please use text input instead.")
                 except Exception as e:
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': f'Failed to process image: {str(e)}'}), 500
@@ -497,10 +532,17 @@ def index():
             elif filename.endswith(('.mp3', '.wav', '.m4a', '.flac')):
                 # Handle audio files
                 try:
-                    recognizer = sr.Recognizer()
-                    with sr.AudioFile(file) as source:
-                        audio_data = recognizer.record(source)
-                        text = recognizer.recognize_google(audio_data)
+                    # Check if SpeechRecognition is available
+                    try:
+                        import speech_recognition as sr
+                        recognizer = sr.Recognizer()
+                        with sr.AudioFile(file) as source:
+                            audio_data = recognizer.record(source)
+                            text = recognizer.recognize_google(audio_data)
+                    except ImportError:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'error': 'Speech recognition is not available on this server. Please use text input instead.'}), 500
+                        return render_template('index.html', prediction="Speech recognition is not available on this server. Please use text input instead.")
                 except Exception as e:
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': f'Failed to process audio: {str(e)}'}), 500
@@ -508,32 +550,38 @@ def index():
             elif filename.endswith(('.mp4', '.avi', '.mov', '.mkv')):
                 # Handle video files
                 try:
-                    # Extract audio from video and convert to text
-                    import tempfile
-                    import os
-                    
-                    # Save video to temp file
-                    temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-                    file.save(temp_video.name)
-                    temp_video.close()
-                    
-                    # Extract audio using moviepy
-                    from moviepy.editor import VideoFileClip
-                    video = VideoFileClip(temp_video.name)
-                    temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-                    video.audio.write_audiofile(temp_audio.name, verbose=False, logger=None)
-                    video.close()
-                    
-                    # Convert audio to text
-                    recognizer = sr.Recognizer()
-                    with sr.AudioFile(temp_audio.name) as source:
-                        audio_data = recognizer.record(source)
-                        text = recognizer.recognize_google(audio_data)
-                    
-                    # Clean up temp files
-                    os.unlink(temp_video.name)
-                    os.unlink(temp_audio.name)
-                    
+                    # Check if required libraries are available
+                    try:
+                        import tempfile
+                        import os
+                        from moviepy.editor import VideoFileClip
+                        import speech_recognition as sr
+                        
+                        # Save video to temp file
+                        temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+                        file.save(temp_video.name)
+                        temp_video.close()
+                        
+                        # Extract audio using moviepy
+                        video = VideoFileClip(temp_video.name)
+                        temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+                        video.audio.write_audiofile(temp_audio.name, verbose=False, logger=None)
+                        video.close()
+                        
+                        # Convert audio to text
+                        recognizer = sr.Recognizer()
+                        with sr.AudioFile(temp_audio.name) as source:
+                            audio_data = recognizer.record(source)
+                            text = recognizer.recognize_google(audio_data)
+                        
+                        # Clean up temp files
+                        os.unlink(temp_video.name)
+                        os.unlink(temp_audio.name)
+                        
+                    except ImportError as ie:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'error': f'Video processing libraries are not available on this server: {str(ie)}. Please use text input instead.'}), 500
+                        return render_template('index.html', prediction=f"Video processing libraries are not available on this server: {str(ie)}. Please use text input instead.")
                 except Exception as e:
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': f'Failed to process video: {str(e)}'}), 500
