@@ -672,12 +672,15 @@ def index():
             try:
                 print(f"🔍 Processing URL: {url}")
                 
-                # Check if it's a media URL (image, video, audio)
+                # Check if it's a media URL (image, video, audio) or YouTube URL
                 media_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', 
                                   '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm',
                                   '.mp3', '.wav', '.m4a', '.flac', '.aac', '.ogg']
                 
-                is_media_url = any(url.lower().endswith(ext) for ext in media_extensions)
+                # Check for YouTube URLs
+                is_youtube_url = 'youtube.com' in url.lower() or 'youtu.be' in url.lower()
+                
+                is_media_url = any(url.lower().endswith(ext) for ext in media_extensions) or is_youtube_url
                 
                 if is_media_url:
                     # Handle media URLs
