@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error Test</title>
+</head>
+<body>
+    <h1>Error Handling Test</h1>
+    <button onclick="testError()">Test YouTube URL Error</button>
+    <div id="result"></div>
+
+    <script>
+        async function testError() {
+            try {
+                const formData = new FormData();
+                formData.append('article_url', 'https://www.youtube.com/watch?v=test');
+                
+                const response = await fetch('https://vertas-ai.onrender.com/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    console.log('Response not ok, status:', response.status);
+                    try {
+                        const responseClone = response.clone();
+                        const errorData = await responseClone.json();
+                        console.log('Parsed error data:', errorData);
+                        document.getElementById('result').innerHTML = `<p style="color: red;">Error: ${errorData.error}</p>`;
+                    } catch (jsonError) {
+                        console.log('JSON parsing failed:', jsonError);
+                        try {
+                            const textResponse = response.clone();
+                            const errorText = await textResponse.text();
+                            console.log('Error text:', errorText);
+                            document.getElementById('result').innerHTML = `<p style="color: red;">Error: ${errorText}</p>`;
+                        } catch (textError) {
+                            console.log('Text parsing also failed:', textError);
+                            document.getElementById('result').innerHTML = `<p style="color: red;">HTTP error! status: ${response.status}</p>`;
+                        }
+                    }
+                } else {
+                    const result = await response.text();
+                    document.getElementById('result').innerHTML = `<p style="color: green;">Success: ${result.substring(0, 100)}...</p>`;
+                }
+            } catch (error) {
+                console.log('Catch block error:', error);
+                document.getElementById('result').innerHTML = `<p style="color: red;">Catch Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html> 

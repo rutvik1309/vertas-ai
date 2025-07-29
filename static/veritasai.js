@@ -1,5 +1,5 @@
 // Global variables
-console.log('VeritasAI JavaScript loaded - v1.8 - FORCE DEPLOY');
+console.log('VeritasAI JavaScript loaded - v1.9 - ERROR ALERT FIX');
 let conversations = [];
 let currentConversationId = null;
 let currentContext = null; // Store the latest prediction context
@@ -439,7 +439,10 @@ async function handlePredictionRequest(input) {
     updateConversationTitle(input.substring(0, 50) + '...');
     
   } catch (error) {
-    addMessage('ai', `Error: ${error.message}`);
+    console.log('Prediction error caught:', error.message);
+    addMessage('ai', `❌ **Error:** ${error.message}`);
+    // Also show an alert for immediate visibility
+    alert(`Error: ${error.message}`);
   }
 }
 
@@ -575,7 +578,10 @@ async function handleFilePrediction() {
     }
     
   } catch (error) {
-    addMessage('ai', `Error: ${error.message}`);
+    console.log('File prediction error caught:', error.message);
+    addMessage('ai', `❌ **Error:** ${error.message}`);
+    // Also show an alert for immediate visibility
+    alert(`Error: ${error.message}`);
   }
 }
 
