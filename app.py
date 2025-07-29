@@ -476,6 +476,163 @@ def add_cors_headers(response):
     
     return response
 
+def process_media_url(url):
+    """
+    Process media URLs (images, videos, audio) and extract text content
+    """
+    try:
+        print(f"🖼️ Processing media URL: {url}")
+        
+        # Download the media file
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        
+        # Determine file type from URL extension
+        url_lower = url.lower()
+        
+        # Image processing
+        if any(url_lower.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff']):
+            return process_image_url(response.content)
+        
+        # Video processing
+        elif any(url_lower.endswith(ext) for ext in ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm']):
+            return process_video_url(response.content)
+        
+        # Audio processing
+        elif any(url_lower.endswith(ext) for ext in ['.mp3', '.wav', '.m4a', '.flac', '.aac', '.ogg']):
+            return process_audio_url(response.content)
+        
+        else:
+            return f"Unsupported media type for URL: {url}"
+            
+    except Exception as e:
+        print(f"❌ Error processing media URL {url}: {e}")
+        return f"Error processing media URL: {str(e)}"
+
+def process_image_url(image_content):
+    """
+    Process image content using OCR
+    """
+    try:
+        # Check if pytesseract is available
+        try:
+            import pytesseract
+            from PIL import Image
+            import io
+            
+            # Open image from bytes
+            image = Image.open(io.BytesIO(image_content))
+            text = pytesseract.image_to_string(image)
+            
+            if text.strip():
+                return f"Text extracted from image using OCR:\n\n{text.strip()}"
+            else:
+                return "Image processed but no text was extracted. This might be a non-text image or the image quality is too low for OCR."
+                
+        except ImportError:
+            return "OCR (pytesseract) is not available on this server. Please use text input instead."
+        except Exception as e:
+            if "tesseract is not installed" in str(e).lower():
+                return "OCR (tesseract) is not installed on this server. Please use text input instead."
+            else:
+                return f"Failed to process image: {str(e)}"
+                
+    except Exception as e:
+        return f"Error processing image: {str(e)}"
+
+def process_video_url(video_content):
+    """
+    Process video content by extracting audio and converting to text
+    """
+    try:
+        import tempfile
+        import os
+        from moviepy.editor import VideoFileClip
+        import speech_recognition as sr
+        
+        # Save video to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_video:
+            temp_video.write(video_content)
+            temp_video_path = temp_video.name
+        
+        try:
+            # Extract audio using moviepy
+            video = VideoFileClip(temp_video_path)
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio:
+                video.audio.write_audiofile(temp_audio.name, verbose=False, logger=None)
+                temp_audio_path = temp_audio.name
+            video.close()
+            
+            # Convert audio to text
+            recognizer = sr.Recognizer()
+            with sr.AudioFile(temp_audio_path) as source:
+                audio_data = recognizer.record(source)
+                text = recognizer.recognize_google(audio_data)
+            
+            # Clean up temp files
+            os.unlink(temp_video_path)
+            os.unlink(temp_audio_path)
+            
+            if text.strip():
+                return f"Audio extracted from video and converted to text:\n\n{text.strip()}"
+            else:
+                return "Video processed but no speech was detected. The video might be silent or have poor audio quality."
+                
+        except Exception as e:
+            # Clean up temp files on error
+            try:
+                os.unlink(temp_video_path)
+            except:
+                pass
+            return f"Failed to process video: {str(e)}"
+            
+    except ImportError:
+        return "Video processing libraries are not available on this server. Please use text input instead."
+    except Exception as e:
+        return f"Error processing video: {str(e)}"
+
+def process_audio_url(audio_content):
+    """
+    Process audio content by converting to text
+    """
+    try:
+        import tempfile
+        import os
+        import speech_recognition as sr
+        
+        # Save audio to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio:
+            temp_audio.write(audio_content)
+            temp_audio_path = temp_audio.name
+        
+        try:
+            # Convert audio to text
+            recognizer = sr.Recognizer()
+            with sr.AudioFile(temp_audio_path) as source:
+                audio_data = recognizer.record(source)
+                text = recognizer.recognize_google(audio_data)
+            
+            # Clean up temp file
+            os.unlink(temp_audio_path)
+            
+            if text.strip():
+                return f"Audio converted to text:\n\n{text.strip()}"
+            else:
+                return "Audio processed but no speech was detected. The audio might be silent or have poor quality."
+                
+        except Exception as e:
+            # Clean up temp file on error
+            try:
+                os.unlink(temp_audio_path)
+            except:
+                pass
+            return f"Failed to process audio: {str(e)}"
+            
+    except ImportError:
+        return "Speech recognition is not available on this server. Please use text input instead."
+    except Exception as e:
+        return f"Error processing audio: {str(e)}"
+
 @app.route('/', methods=['GET', 'POST', 'HEAD'])
 def index():
     prediction, confidence, reasoning_output = None, None, None
@@ -500,29 +657,40 @@ def index():
             try:
                 print(f"🔍 Processing URL: {url}")
                 
-                # Check if it's a YouTube URL
-                if 'youtube.com' in url or 'youtu.be' in url:
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return jsonify({'error': 'YouTube URLs are not supported. Please paste the article text directly or use a news article URL.'}), 400
-                    return render_template('index.html', prediction="YouTube URLs are not supported. Please paste the article text directly or use a news article URL.")
+                # Check if it's a media URL (image, video, audio)
+                media_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', 
+                                  '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm',
+                                  '.mp3', '.wav', '.m4a', '.flac', '.aac', '.ogg']
                 
-                article = Article(url)
-                article.download()
-                article.parse()
-                text = article.text
+                is_media_url = any(url.lower().endswith(ext) for ext in media_extensions)
                 
-                if not text or not text.strip():
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return jsonify({'error': 'No text content could be extracted from this URL. Please try a different URL or paste the article text directly.'}), 400
-                    return render_template('index.html', prediction="No text content could be extracted from this URL. Please try a different URL or paste the article text directly.")
+                if is_media_url:
+                    # Handle media URLs
+                    text = process_media_url(url)
+                    if not text or not text.strip():
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'error': 'No content could be extracted from this media URL. Please try a different URL or paste the content directly.'}), 400
+                        return render_template('index.html', prediction="No content could be extracted from this media URL. Please try a different URL or paste the content directly.")
+                    print(f"✅ Successfully processed media URL, extracted {len(text)} characters")
+                else:
+                    # Handle regular article URLs
+                    article = Article(url)
+                    article.download()
+                    article.parse()
+                    text = article.text
                     
-                print(f"✅ Successfully extracted {len(text)} characters from URL")
+                    if not text or not text.strip():
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'error': 'No text content could be extracted from this URL. Please try a different URL or paste the article text directly.'}), 400
+                        return render_template('index.html', prediction="No text content could be extracted from this URL. Please try a different URL or paste the article text directly.")
+                        
+                    print(f"✅ Successfully extracted {len(text)} characters from URL")
                 
             except Exception as e:
                 print(f"❌ Error processing URL {url}: {e}")
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return jsonify({'error': f'Failed to fetch article from URL: {str(e)}. Please try pasting the article text directly instead.'}), 400
-                return render_template('index.html', prediction=f"Failed to fetch article from URL: {str(e)}. Please try pasting the article text directly instead.")
+                    return jsonify({'error': f'Failed to fetch content from URL: {str(e)}. Please try pasting the content directly instead.'}), 400
+                return render_template('index.html', prediction=f"Failed to fetch content from URL: {str(e)}. Please try pasting the content directly instead.")
 
         elif file:
             # Handle different file types

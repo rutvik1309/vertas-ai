@@ -2,7 +2,7 @@
 const EXTENSION_VERSION = '1.4';
 
 // Backend URL configuration - update this for production
-const BACKEND_URL = 'https://vertas-ai.onrender.com'; // Production Render URL
+const BACKEND_URL = 'https://veritas-ai.onrender.com'; // Production Render URL
 // const BACKEND_URL = 'http://127.0.0.1:5005'; // For local development
 
 // Global variables
@@ -873,51 +873,5 @@ function createMessage(type, content) {
   return messageDiv;
 }
 
-// Initialize the extension when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('Extension initializing...');
-  
-  try {
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Setup theme toggle
-    setupThemeToggle();
-    
-    // Load conversations
-    loadConversations();
-    
-    // Create initial conversation if none exist
-    if (conversations.length === 0) {
-      createNewConversation();
-    }
-    
-    // Update memory indicator
-    updateMemoryIndicator();
-    
-    console.log('Extension initialized successfully');
-  } catch (error) {
-    console.error('Error during extension initialization:', error);
-  }
-});
 
-// Also try to initialize immediately if DOM is already loaded
-if (document.readyState === 'loading') {
-  // DOM is still loading, wait for DOMContentLoaded
-} else {
-  // DOM is already loaded, initialize immediately
-  console.log('DOM already loaded, initializing immediately...');
-  try {
-    setupEventListeners();
-    setupThemeToggle();
-    loadConversations();
-    if (conversations.length === 0) {
-      createNewConversation();
-    }
-    updateMemoryIndicator();
-    console.log('Extension initialized successfully (immediate)');
-  } catch (error) {
-    console.error('Error during immediate initialization:', error);
-  }
-}
   
