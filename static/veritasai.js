@@ -1,4 +1,5 @@
 // Global variables
+console.log('VeritasAI JavaScript loaded - v1.5');
 let conversations = [];
 let currentConversationId = null;
 let currentContext = null; // Store the latest prediction context
@@ -315,7 +316,8 @@ async function handlePredictionRequest(input) {
     if (!response.ok) {
       // Try to parse JSON error response first
       try {
-        const errorData = await response.json();
+        const responseClone = response.clone();
+        const errorData = await responseClone.json();
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       } catch (jsonError) {
         // If JSON parsing fails, throw the original error
@@ -432,6 +434,7 @@ async function handlePredictionRequest(input) {
 
 // Handle file prediction
 async function handleFilePrediction() {
+  console.log('handleFilePrediction called, selectedFile:', selectedFile);
   if (!selectedFile) return;
   
   // Wait for file content to be loaded if it's not ready yet
@@ -485,7 +488,8 @@ async function handleFilePrediction() {
     if (!response.ok) {
       // Try to parse JSON error response first
       try {
-        const errorData = await response.json();
+        const responseClone = response.clone();
+        const errorData = await responseClone.json();
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       } catch (jsonError) {
         // If JSON parsing fails, throw the original error
