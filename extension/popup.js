@@ -1,5 +1,5 @@
 // Extension version for cache busting
-const EXTENSION_VERSION = '1.3';
+const EXTENSION_VERSION = '1.4';
 
 // Backend URL configuration - update this for production
 const BACKEND_URL = 'https://vertas-ai.onrender.com'; // Production Render URL
@@ -383,13 +383,29 @@ async function handlePredictionRequest(input) {
     });
     
     if (!response.ok) {
+      console.log('Extension response not ok, status:', response.status);
       // Try to parse JSON error response first
       try {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        const responseClone = response.clone();
+        const errorData = await responseClone.json();
+        console.log('Extension parsed error data:', errorData);
+        // Display the detailed error message directly instead of throwing
+        addMessage('ai', `❌ **Error:** ${errorData.error || `HTTP error! status: ${response.status}`}`);
+        return; // Exit early, don't continue processing
       } catch (jsonError) {
-        // If JSON parsing fails, throw the original error
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.log('Extension JSON parsing failed:', jsonError);
+        // If JSON parsing fails, try to get text
+        try {
+          const textResponse = response.clone();
+          const errorText = await textResponse.text();
+          console.log('Extension error text:', errorText);
+          addMessage('ai', `❌ **Error:** ${errorText}`);
+          return; // Exit early
+        } catch (textError) {
+          console.log('Extension text parsing also failed:', textError);
+          addMessage('ai', `❌ **Error:** HTTP error! status: ${response.status}`);
+          return; // Exit early
+        }
       }
     }
     
@@ -504,13 +520,29 @@ async function handleFilePrediction() {
     });
     
     if (!response.ok) {
+      console.log('Extension file prediction response not ok, status:', response.status);
       // Try to parse JSON error response first
       try {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        const responseClone = response.clone();
+        const errorData = await responseClone.json();
+        console.log('Extension file prediction parsed error data:', errorData);
+        // Display the detailed error message directly instead of throwing
+        addMessage('ai', `❌ **Error:** ${errorData.error || `HTTP error! status: ${response.status}`}`);
+        return; // Exit early, don't continue processing
       } catch (jsonError) {
-        // If JSON parsing fails, throw the original error
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.log('Extension file prediction JSON parsing failed:', jsonError);
+        // If JSON parsing fails, try to get text
+        try {
+          const textResponse = response.clone();
+          const errorText = await textResponse.text();
+          console.log('Extension file prediction error text:', errorText);
+          addMessage('ai', `❌ **Error:** ${errorText}`);
+          return; // Exit early
+        } catch (textError) {
+          console.log('Extension file prediction text parsing also failed:', textError);
+          addMessage('ai', `❌ **Error:** HTTP error! status: ${response.status}`);
+          return; // Exit early
+        }
       }
     }
     
