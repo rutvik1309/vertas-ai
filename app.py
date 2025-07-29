@@ -498,14 +498,31 @@ def index():
 
         if url:
             try:
+                print(f"🔍 Processing URL: {url}")
+                
+                # Check if it's a YouTube URL
+                if 'youtube.com' in url or 'youtu.be' in url:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': 'YouTube URLs are not supported. Please paste the article text directly or use a news article URL.'}), 400
+                    return render_template('index.html', prediction="YouTube URLs are not supported. Please paste the article text directly or use a news article URL.")
+                
                 article = Article(url)
                 article.download()
                 article.parse()
                 text = article.text
+                
+                if not text or not text.strip():
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': 'No text content could be extracted from this URL. Please try a different URL or paste the article text directly.'}), 400
+                    return render_template('index.html', prediction="No text content could be extracted from this URL. Please try a different URL or paste the article text directly.")
+                    
+                print(f"✅ Successfully extracted {len(text)} characters from URL")
+                
             except Exception as e:
+                print(f"❌ Error processing URL {url}: {e}")
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return f"Failed to fetch article: {e}", 400
-                return render_template('index.html', prediction=f"Failed to fetch article: {e}")
+                    return jsonify({'error': f'Failed to fetch article from URL: {str(e)}. Please try pasting the article text directly instead.'}), 400
+                return render_template('index.html', prediction=f"Failed to fetch article from URL: {str(e)}. Please try pasting the article text directly instead.")
 
         elif file:
             # Handle different file types
