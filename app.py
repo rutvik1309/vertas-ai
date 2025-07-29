@@ -516,118 +516,6 @@ def process_youtube_url(url):
     try:
         print(f"🎥 Processing YouTube URL: {url}")
         
-        # Try to import yt-dlp, fallback to basic extraction if not available
-        try:
-            import yt_dlp
-            
-            # Configure yt-dlp options for comprehensive extraction
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': False,
-                'writesubtitles': True,
-                'writeautomaticsub': True,
-                'subtitleslangs': ['en'],
-                'skip_download': True,  # Don't download the video, just extract info
-                'extract_info': True,
-            }
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # Extract comprehensive video information
-                info = ydl.extract_info(url, download=False)
-                
-                # Extract detailed information
-                title = info.get('title', '')
-                description = info.get('description', '')
-                uploader = info.get('uploader', '')
-                channel_url = info.get('channel_url', '')
-                view_count = info.get('view_count', 0)
-                like_count = info.get('like_count', 0)
-                dislike_count = info.get('dislike_count', 0)
-                duration = info.get('duration', 0)
-                upload_date = info.get('upload_date', '')
-                tags = info.get('tags', [])
-                categories = info.get('categories', [])
-                
-                # Try to get subtitles/transcript with multiple methods
-                transcript = ""
-                try:
-                    # Method 1: Get manual subtitles
-                    if 'subtitles' in info and 'en' in info['subtitles']:
-                        transcript = info['subtitles']['en'][0]['data']
-                    # Method 2: Get automatic captions
-                    elif 'automatic_captions' in info and 'en' in info['automatic_captions']:
-                        transcript = info['automatic_captions']['en'][0]['data']
-                    # Method 3: Try to extract from available subtitles
-                    elif 'subtitles' in info:
-                        for lang, subs in info['subtitles'].items():
-                            if subs and len(subs) > 0:
-                                transcript = subs[0]['data']
-                                break
-                except Exception as e:
-                    print(f"Could not extract transcript: {e}")
-                
-                # Extract key claims and topics from title and description
-                key_topics = []
-                if title:
-                    key_topics.append(f"Title: {title}")
-                if description:
-                    # Extract first 500 characters of description
-                    desc_preview = description[:500] + "..." if len(description) > 500 else description
-                    key_topics.append(f"Description: {desc_preview}")
-                
-                # Analyze uploader credibility
-                uploader_analysis = f"Uploader: {uploader}"
-                if channel_url:
-                    uploader_analysis += f" (Channel: {channel_url})"
-                
-                # Combine all text content for comprehensive analysis
-                content_for_analysis = f"""
-VIDEO ANALYSIS:
-{uploader_analysis}
-Title: {title}
-Description: {description[:1000] if description else 'No description available'}
-Transcript: {transcript if transcript else 'No transcript available'}
-Duration: {duration} seconds
-Upload Date: {upload_date}
-View Count: {view_count:,} views
-Like Count: {like_count:,} likes
-Dislike Count: {dislike_count:,} dislikes
-Tags: {', '.join(tags[:10]) if tags else 'No tags'}
-Categories: {', '.join(categories) if categories else 'No categories'}
-
-KEY CONTENT TO ANALYZE:
-{chr(10).join(key_topics)}
-
-FACT-CHECKING ANALYSIS:
-Based on the extracted content above, please provide:
-1. A definitive FAKE/REAL assessment
-2. Specific evidence from the title, description, and transcript
-3. Analysis of uploader credibility and channel reputation
-4. Cross-referencing with peer-reviewed sources
-5. Assessment of potential bias or misinformation indicators
-                """.strip()
-                
-                if not content_for_analysis.strip():
-                    return "Could not extract any content from this YouTube video. Please provide the video description or transcript manually."
-                
-                return content_for_analysis
-                
-        except ImportError:
-            print("yt-dlp not available, using fallback method")
-            return process_youtube_url_fallback(url)
-            
-    except Exception as e:
-        print(f"❌ Error processing YouTube URL {url}: {e}")
-        return process_youtube_url_fallback(url)
-
-def process_youtube_url_fallback(url):
-    """
-    Fallback method for YouTube URL processing without yt-dlp
-    """
-    try:
-        print(f"🔄 Using fallback method for YouTube URL: {url}")
-        
         # Extract video ID from URL
         import re
         video_id_match = re.search(r'(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)', url)
@@ -636,18 +524,18 @@ def process_youtube_url_fallback(url):
         
         video_id = video_id_match.group(1)
         
-        # Create a comprehensive analysis request that will work without external dependencies
+        # Create a comprehensive analysis framework that works without external dependencies
         content_for_analysis = f"""
-YOUTUBE VIDEO ANALYSIS:
+YOUTUBE VIDEO FACT-CHECKING ANALYSIS:
 Video URL: {url}
 Video ID: {video_id}
 
-COMPREHENSIVE FACT-CHECKING ANALYSIS REQUEST:
+COMPREHENSIVE ANALYSIS FRAMEWORK:
 
-This YouTube video requires thorough fact-checking analysis. Based on the video URL, I need to:
+This YouTube video requires thorough fact-checking analysis. Based on the video URL and ID, I will provide:
 
 1. **CONTENT ANALYSIS**: 
-   - Extract and analyze the video title, description, and any available transcript
+   - Analyze the video title, description, and any available transcript
    - Identify key claims, statements, or assertions made in the video
    - Assess the tone, presentation style, and potential bias indicators
 
@@ -676,10 +564,12 @@ Please analyze this YouTube video and provide a definitive FAKE/REAL assessment 
         """.strip()
         
         return content_for_analysis
-        
+            
     except Exception as e:
-        print(f"❌ Error in fallback YouTube processing: {e}")
+        print(f"❌ Error processing YouTube URL {url}: {e}")
         return f"Error processing YouTube URL: {str(e)}"
+
+
 
 def process_image_url(image_content):
     """
