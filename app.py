@@ -904,6 +904,8 @@ CRITICAL INSTRUCTIONS:
 - Give peer-reviewed references that are RELEVANT to the specific claims made in the content
 - If the content shows "VIDEO ANALYSIS" or "YOUTUBE VIDEO ANALYSIS", analyze the provided metadata and structure
 - If the content shows "FACT-CHECKING ANALYSIS", provide a comprehensive assessment based on the analysis framework
+- If the content shows "YOUTUBE VIDEO FACT-CHECKING ANALYSIS", analyze the video based on the comprehensive framework provided and give a definitive assessment
+- IMPORTANT: Do NOT say "without access to content" if the content shows analysis frameworks or structured information
 
 TASK: Provide a comprehensive analysis with the following structure:
 
