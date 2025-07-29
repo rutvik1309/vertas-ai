@@ -312,7 +312,14 @@ async function handlePredictionRequest(input) {
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Try to parse JSON error response first
+      try {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      } catch (jsonError) {
+        // If JSON parsing fails, throw the original error
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
     }
     
     const result = await response.text();
@@ -475,7 +482,14 @@ async function handleFilePrediction() {
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Try to parse JSON error response first
+      try {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      } catch (jsonError) {
+        // If JSON parsing fails, throw the original error
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
     }
     
     const result = await response.text();
