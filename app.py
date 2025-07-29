@@ -511,15 +511,64 @@ def process_media_url(url):
 
 def process_youtube_url(url):
     """
-    Process YouTube URLs by extracting video information
+    Process YouTube URLs by extracting video information and analyzing content
     """
     try:
         print(f"🎥 Processing YouTube URL: {url}")
         
-        # For now, return a message indicating YouTube processing
-        # In a full implementation, you would use yt-dlp or similar to extract video info
-        return f"YouTube video detected: {url}\n\nNote: YouTube video processing requires additional setup with yt-dlp library. For now, please provide the video description or transcript manually."
+        # Import yt-dlp for YouTube video extraction
+        import yt_dlp
         
+        # Configure yt-dlp options
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': False,
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'skip_download': True,  # Don't download the video, just extract info
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Extract video information
+            info = ydl.extract_info(url, download=False)
+            
+            # Extract key information
+            title = info.get('title', '')
+            description = info.get('description', '')
+            uploader = info.get('uploader', '')
+            view_count = info.get('view_count', 0)
+            like_count = info.get('like_count', 0)
+            duration = info.get('duration', 0)
+            
+            # Try to get subtitles/transcript
+            transcript = ""
+            try:
+                # Get automatic subtitles if available
+                if 'subtitles' in info and 'en' in info['subtitles']:
+                    transcript = info['subtitles']['en'][0]['data']
+                elif 'automatic_captions' in info and 'en' in info['automatic_captions']:
+                    transcript = info['automatic_captions']['en'][0]['data']
+            except Exception as e:
+                print(f"Could not extract transcript: {e}")
+            
+            # Combine all text content for analysis
+            content_for_analysis = f"""
+Title: {title}
+Uploader: {uploader}
+Description: {description}
+Transcript: {transcript}
+View Count: {view_count}
+Like Count: {like_count}
+Duration: {duration} seconds
+            """.strip()
+            
+            if not content_for_analysis.strip():
+                return "Could not extract any content from this YouTube video. Please provide the video description or transcript manually."
+            
+            return content_for_analysis
+            
     except Exception as e:
         print(f"❌ Error processing YouTube URL {url}: {e}")
         return f"Error processing YouTube URL: {str(e)}"
@@ -842,40 +891,40 @@ def index():
 
         label_map = {0: "Fake", 1: "Real"}
 
-        # Get comprehensive Gemini reasoning
-        if label_map[prediction] == "Fake":
-            prompt = f"""You are an expert fact-checker. Analyze this FAKE news article and provide:
+        # Get comprehensive Gemini reasoning with enhanced analysis
+        prompt = f"""You are an expert fact-checker and news analyst. Analyze this content and provide a definitive assessment of whether it's FAKE or REAL news.
 
-1. REASONING: Detailed explanation of why this is fake news
-2. ORIGINAL_NEWS: What the original/real story was (if this is a distortion)
-3. RED_FLAGS: Key indicators that this is fake
-4. REFERENCES: Credible sources for fact-checking
+CONTENT TO ANALYZE:
+{text[:3000]}
 
-Article: {text[:2000]}
+TASK: Provide a comprehensive analysis with the following structure:
 
-IMPORTANT: Respond ONLY with valid JSON, no markdown formatting, no code blocks. Use this exact format:
+1. **DEFINITIVE VERDICT**: Start with "FAKE" or "REAL" based on your analysis
+2. **CONFIDENCE LEVEL**: High, Medium, or Low confidence in your assessment
+3. **DETAILED REASONING**: Explain why you classified it as fake or real
+4. **KEY EVIDENCE**: List specific evidence that supports your conclusion
+5. **RED FLAGS** (if fake): List warning signs that indicate fake news
+6. **CREDIBILITY FACTORS** (if real): List factors that make this credible
+7. **VERIFICATION METHODS**: How this can be verified or fact-checked
+8. **RECOMMENDED SOURCES**: Credible sources for further verification
+
+IMPORTANT: 
+- Be definitive in your assessment (FAKE or REAL)
+- Provide specific evidence from the content
+- Consider source credibility, claims made, and verifiability
+- For YouTube videos, analyze the title, description, and transcript
+- For news articles, check for sensationalism, source reliability, and factual claims
+
+Respond in this JSON format:
 {{
-  "reasoning": "Detailed explanation...",
-  "original_news": "What the real story was...",
-  "red_flags": ["Flag 1", "Flag 2", "Flag 3"],
-  "references": ["https://factcheck.org/...", "https://snopes.com/..."]
-}}"""
-        else:
-            prompt = f"""You are an expert fact-checker. Analyze this REAL news article and provide:
-
-1. REASONING: Detailed explanation of why this appears to be real news
-2. CREDIBILITY_FACTORS: What makes this story credible
-3. VERIFICATION: How this story can be verified
-4. REFERENCES: Credible sources that support this story
-
-Article: {text[:2000]}
-
-IMPORTANT: Respond ONLY with valid JSON, no markdown formatting, no code blocks. Use this exact format:
-{{
-  "reasoning": "Detailed explanation...",
-  "credibility_factors": ["Factor 1", "Factor 2", "Factor 3"],
+  "verdict": "FAKE" or "REAL",
+  "confidence": "High/Medium/Low",
+  "reasoning": "Detailed explanation of your assessment...",
+  "evidence": ["Specific evidence point 1", "Specific evidence point 2"],
+  "red_flags": ["Warning sign 1", "Warning sign 2"] (only if fake),
+  "credibility_factors": ["Factor 1", "Factor 2"] (only if real),
   "verification": "How to verify this story...",
-  "references": ["https://reliable-source.com/...", "https://official-statement.com/..."]
+  "sources": ["https://reliable-source.com/...", "https://factcheck.org/..."]
 }}"""
 
         reasoning_output = None
@@ -904,22 +953,43 @@ IMPORTANT: Respond ONLY with valid JSON, no markdown formatting, no code blocks.
                     response_text = response_text.strip()
                     
                     parsed = json.loads(response_text)
-                    reasoning_output = parsed.get("reasoning", "")
-                    references_output = parsed.get("references", [])
-                    original_news = parsed.get("original_news", "")
-                    red_flags = parsed.get("red_flags", [])
                     
-                    # If reasoning is empty, try alternative fields
+                    # Use the AI's verdict instead of ML pipeline prediction
+                    ai_verdict = parsed.get("verdict", "UNKNOWN")
+                    ai_confidence = parsed.get("confidence", "Medium")
+                    reasoning_output = parsed.get("reasoning", "")
+                    references_output = parsed.get("sources", [])
+                    evidence = parsed.get("evidence", [])
+                    red_flags = parsed.get("red_flags", [])
+                    credibility_factors = parsed.get("credibility_factors", [])
+                    verification = parsed.get("verification", "")
+                    
+                    # Update prediction based on AI analysis
+                    if ai_verdict.upper() == "FAKE":
+                        prediction = 0  # Fake
+                        confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
+                    elif ai_verdict.upper() == "REAL":
+                        prediction = 1  # Real
+                        confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
+                    else:
+                        # Keep original ML prediction if AI couldn't determine
+                        confidence = 0.5
+                    
+                    # Build comprehensive reasoning
                     if not reasoning_output:
-                        if label_map[prediction] == "Fake":
-                            reasoning_output = f"Analysis: This article appears to be fake news based on several indicators."
-                            if red_flags:
-                                reasoning_output += f"\n\nRed Flags:\n" + "\n".join([f"• {flag}" for flag in red_flags])
-                        else:
-                            reasoning_output = f"Analysis: This article appears to be real news based on credible factors."
-                            credibility_factors = parsed.get("credibility_factors", [])
-                            if credibility_factors:
-                                reasoning_output += f"\n\nCredibility Factors:\n" + "\n".join([f"• {factor}" for factor in credibility_factors])
+                        reasoning_output = f"AI Analysis: {ai_verdict} news with {ai_confidence.lower()} confidence."
+                    
+                    if evidence:
+                        reasoning_output += f"\n\nKey Evidence:\n" + "\n".join([f"• {point}" for point in evidence])
+                    
+                    if red_flags:
+                        reasoning_output += f"\n\nRed Flags:\n" + "\n".join([f"• {flag}" for flag in red_flags])
+                    
+                    if credibility_factors:
+                        reasoning_output += f"\n\nCredibility Factors:\n" + "\n".join([f"• {factor}" for factor in credibility_factors])
+                    
+                    if verification:
+                        reasoning_output += f"\n\nVerification: {verification}"
                             
                 except Exception as e:
                     # Fallback to text parsing - clean up the response
@@ -951,21 +1021,43 @@ IMPORTANT: Respond ONLY with valid JSON, no markdown formatting, no code blocks.
                                 response_text = response_text.strip()
                                 
                                 parsed = json.loads(response_text)
-                                reasoning_output = parsed.get("reasoning", "")
-                                references_output = parsed.get("references", [])
-                                original_news = parsed.get("original_news", "")
-                                red_flags = parsed.get("red_flags", [])
                                 
+                                # Use the AI's verdict instead of ML pipeline prediction
+                                ai_verdict = parsed.get("verdict", "UNKNOWN")
+                                ai_confidence = parsed.get("confidence", "Medium")
+                                reasoning_output = parsed.get("reasoning", "")
+                                references_output = parsed.get("sources", [])
+                                evidence = parsed.get("evidence", [])
+                                red_flags = parsed.get("red_flags", [])
+                                credibility_factors = parsed.get("credibility_factors", [])
+                                verification = parsed.get("verification", "")
+                                
+                                # Update prediction based on AI analysis
+                                if ai_verdict.upper() == "FAKE":
+                                    prediction = 0  # Fake
+                                    confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
+                                elif ai_verdict.upper() == "REAL":
+                                    prediction = 1  # Real
+                                    confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
+                                else:
+                                    # Keep original ML prediction if AI couldn't determine
+                                    confidence = 0.5
+                                
+                                # Build comprehensive reasoning
                                 if not reasoning_output:
-                                    if label_map[prediction] == "Fake":
-                                        reasoning_output = f"Analysis: This article appears to be fake news based on several indicators."
-                                        if red_flags:
-                                            reasoning_output += f"\n\nRed Flags:\n" + "\n".join([f"• {flag}" for flag in red_flags])
-                                    else:
-                                        reasoning_output = f"Analysis: This article appears to be real news based on credible factors."
-                                        credibility_factors = parsed.get("credibility_factors", [])
-                                        if credibility_factors:
-                                            reasoning_output += f"\n\nCredibility Factors:\n" + "\n".join([f"• {factor}" for factor in credibility_factors])
+                                    reasoning_output = f"AI Analysis: {ai_verdict} news with {ai_confidence.lower()} confidence."
+                                
+                                if evidence:
+                                    reasoning_output += f"\n\nKey Evidence:\n" + "\n".join([f"• {point}" for point in evidence])
+                                
+                                if red_flags:
+                                    reasoning_output += f"\n\nRed Flags:\n" + "\n".join([f"• {flag}" for flag in red_flags])
+                                
+                                if credibility_factors:
+                                    reasoning_output += f"\n\nCredibility Factors:\n" + "\n".join([f"• {factor}" for factor in credibility_factors])
+                                
+                                if verification:
+                                    reasoning_output += f"\n\nVerification: {verification}"
                             except Exception as e2:
                                 reasoning_output = gemini_response.text
                                 if reasoning_output.startswith('```json'):
