@@ -1,5 +1,5 @@
 // Global variables
-console.log('VeritasAI JavaScript loaded - v1.9 - ERROR ALERT FIX');
+console.log('VeritasAI JavaScript loaded - v2.0 - FINAL ERROR FIX');
 let conversations = [];
 let currentConversationId = null;
 let currentContext = null; // Store the latest prediction context
@@ -310,7 +310,10 @@ async function handlePredictionRequest(input) {
     const response = await fetch('/', {
       method: 'POST',
       body: formData,
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      headers: { 
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json, text/plain, */*'
+      }
     });
     
     if (!response.ok) {
@@ -320,7 +323,9 @@ async function handlePredictionRequest(input) {
         const responseClone = response.clone();
         const errorData = await responseClone.json();
         console.log('Parsed error data:', errorData);
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        // Display the detailed error message directly instead of throwing
+        addMessage('ai', `❌ **Error:** ${errorData.error || `HTTP error! status: ${response.status}`}`);
+        return; // Exit early, don't continue processing
       } catch (jsonError) {
         console.log('JSON parsing failed:', jsonError);
         // If JSON parsing fails, try to get text
@@ -328,10 +333,12 @@ async function handlePredictionRequest(input) {
           const textResponse = response.clone();
           const errorText = await textResponse.text();
           console.log('Error text:', errorText);
-          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+          addMessage('ai', `❌ **Error:** ${errorText}`);
+          return; // Exit early
         } catch (textError) {
           console.log('Text parsing also failed:', textError);
-          throw new Error(`HTTP error! status: ${response.status}`);
+          addMessage('ai', `❌ **Error:** HTTP error! status: ${response.status}`);
+          return; // Exit early
         }
       }
     }
@@ -496,7 +503,10 @@ async function handleFilePrediction() {
     const response = await fetch('/', {
       method: 'POST',
       body: formData,
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      headers: { 
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json, text/plain, */*'
+      }
     });
     
     if (!response.ok) {
@@ -506,7 +516,9 @@ async function handleFilePrediction() {
         const responseClone = response.clone();
         const errorData = await responseClone.json();
         console.log('File prediction parsed error data:', errorData);
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        // Display the detailed error message directly instead of throwing
+        addMessage('ai', `❌ **Error:** ${errorData.error || `HTTP error! status: ${response.status}`}`);
+        return; // Exit early, don't continue processing
       } catch (jsonError) {
         console.log('File prediction JSON parsing failed:', jsonError);
         // If JSON parsing fails, try to get text
@@ -514,10 +526,12 @@ async function handleFilePrediction() {
           const textResponse = response.clone();
           const errorText = await textResponse.text();
           console.log('File prediction error text:', errorText);
-          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+          addMessage('ai', `❌ **Error:** ${errorText}`);
+          return; // Exit early
         } catch (textError) {
           console.log('File prediction text parsing also failed:', textError);
-          throw new Error(`HTTP error! status: ${response.status}`);
+          addMessage('ai', `❌ **Error:** HTTP error! status: ${response.status}`);
+          return; // Exit early
         }
       }
     }
