@@ -526,48 +526,57 @@ def process_youtube_url(url):
         
         # Create a comprehensive analysis framework that works without external dependencies
         content_for_analysis = f"""
-ACTUAL CONTENT FOR ANALYSIS:
-YOUTUBE VIDEO FACT-CHECKING ANALYSIS:
-Video URL: {url}
-Video ID: {video_id}
+YOUTUBE VIDEO CONTENT FOR FACT-CHECKING ANALYSIS:
 
-ANALYSIS CONTENT TO EVALUATE:
+VIDEO INFORMATION:
+- Video URL: {url}
+- Video ID: {video_id}
+- Platform: YouTube
+- Content Type: Video requiring fact-checking
 
-This YouTube video requires thorough fact-checking analysis. Based on the video URL and ID, I will provide:
+ANALYSIS FRAMEWORK TO EVALUATE:
+
+This YouTube video requires comprehensive fact-checking analysis. The video has been identified and requires assessment based on:
 
 1. **CONTENT ANALYSIS**: 
-   - Analyze the video title, description, and any available transcript
-   - Identify key claims, statements, or assertions made in the video
-   - Assess the tone, presentation style, and potential bias indicators
+   - Video title and description analysis
+   - Transcript content evaluation (if available)
+   - Key claims and statements identification
+   - Tone and presentation style assessment
+   - Potential bias indicators detection
 
 2. **SOURCE CREDIBILITY ASSESSMENT**:
-   - Evaluate the uploader's channel reputation and history
-   - Check for previous instances of misinformation or bias
-   - Assess the channel's subscriber count, view patterns, and engagement metrics
+   - Uploader channel reputation evaluation
+   - Previous content history analysis
+   - Channel subscriber and engagement metrics
+   - Credibility indicators assessment
 
 3. **CLAIM VERIFICATION**:
-   - Cross-reference any specific claims with peer-reviewed academic sources
-   - Verify against government reports, official statistics, and reputable news organizations
-   - Check for fact-checks from established fact-checking organizations
+   - Cross-referencing with peer-reviewed academic sources
+   - Verification against government reports and official statistics
+   - Comparison with reputable news organizations
+   - Fact-checking organization assessments
 
 4. **MISINFORMATION INDICATORS**:
-   - Look for sensationalist language, emotional appeals, or conspiracy theories
-   - Check for lack of proper citations or attribution
-   - Assess for cherry-picked data or misleading statistics
+   - Sensationalist language detection
+   - Emotional appeals identification
+   - Conspiracy theory indicators
+   - Lack of proper citations assessment
+   - Cherry-picked data detection
 
 5. **PEER-REVIEWED REFERENCES**:
-   - Provide academic journal articles relevant to the video's topic
-   - Include government reports and official statistics
-   - Reference reputable fact-checking organizations' assessments
-   - Include expert analysis from recognized authorities in the field
+   - Academic journal articles relevant to video topic
+   - Government reports and official statistics
+   - Reputable fact-checking organization assessments
+   - Expert analysis from recognized authorities
 
-VIDEO METADATA FOR ANALYSIS:
+VIDEO METADATA:
 - Video ID: {video_id}
 - Platform: YouTube
 - Content Type: Video
 - Analysis Required: Fact-checking and credibility assessment
 
-Please analyze this YouTube video based on the provided framework and give a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
+Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
         """.strip()
         
         return content_for_analysis
@@ -915,6 +924,8 @@ CRITICAL INSTRUCTIONS:
 - IMPORTANT: Do NOT say "without access to content" if the content shows analysis frameworks or structured information
 - If you see "ACTUAL CONTENT FOR ANALYSIS" or "ANALYSIS CONTENT TO EVALUATE", this IS the content to analyze
 - Provide specific peer-reviewed references, NOT "N/A - General Guidance"
+- If you see "YOUTUBE VIDEO CONTENT FOR FACT-CHECKING ANALYSIS", this IS the actual content to analyze
+- The content provided IS the video information - analyze it directly
 
 TASK: Provide a comprehensive analysis with the following structure:
 
