@@ -296,6 +296,7 @@ async function handleChatSubmit(e) {
 
 // Handle prediction request
 async function handlePredictionRequest(input) {
+  console.log('handlePredictionRequest called with input:', input);
   try {
     const formData = new FormData();
     
