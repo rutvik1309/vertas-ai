@@ -598,6 +598,14 @@ Categories: {', '.join(categories) if categories else 'No categories'}
 
 KEY CONTENT TO ANALYZE:
 {chr(10).join(key_topics)}
+
+FACT-CHECKING ANALYSIS:
+Based on the extracted content above, please provide:
+1. A definitive FAKE/REAL assessment
+2. Specific evidence from the title, description, and transcript
+3. Analysis of uploader credibility and channel reputation
+4. Cross-referencing with peer-reviewed sources
+5. Assessment of potential bias or misinformation indicators
                 """.strip()
                 
                 if not content_for_analysis.strip():
@@ -628,22 +636,43 @@ def process_youtube_url_fallback(url):
         
         video_id = video_id_match.group(1)
         
-        # Use YouTube Data API or simple web scraping as fallback
-        # For now, return a structured analysis request
+        # Create a comprehensive analysis request that will work without external dependencies
         content_for_analysis = f"""
-YOUTUBE VIDEO ANALYSIS REQUEST:
+YOUTUBE VIDEO ANALYSIS:
 Video URL: {url}
 Video ID: {video_id}
 
-ANALYSIS NEEDED:
-1. Extract video title and description from YouTube
-2. Analyze uploader channel and credibility
-3. Check video engagement metrics (views, likes, comments)
-4. Identify key claims and topics in the video
-5. Cross-reference claims with peer-reviewed sources
-6. Assess potential bias or misinformation indicators
+COMPREHENSIVE FACT-CHECKING ANALYSIS REQUEST:
 
-Please provide the video title and description so I can perform a comprehensive fact-check analysis.
+This YouTube video requires thorough fact-checking analysis. Based on the video URL, I need to:
+
+1. **CONTENT ANALYSIS**: 
+   - Extract and analyze the video title, description, and any available transcript
+   - Identify key claims, statements, or assertions made in the video
+   - Assess the tone, presentation style, and potential bias indicators
+
+2. **SOURCE CREDIBILITY ASSESSMENT**:
+   - Evaluate the uploader's channel reputation and history
+   - Check for previous instances of misinformation or bias
+   - Assess the channel's subscriber count, view patterns, and engagement metrics
+
+3. **CLAIM VERIFICATION**:
+   - Cross-reference any specific claims with peer-reviewed academic sources
+   - Verify against government reports, official statistics, and reputable news organizations
+   - Check for fact-checks from established fact-checking organizations
+
+4. **MISINFORMATION INDICATORS**:
+   - Look for sensationalist language, emotional appeals, or conspiracy theories
+   - Check for lack of proper citations or attribution
+   - Assess for cherry-picked data or misleading statistics
+
+5. **PEER-REVIEWED REFERENCES**:
+   - Provide academic journal articles relevant to the video's topic
+   - Include government reports and official statistics
+   - Reference reputable fact-checking organizations' assessments
+   - Include expert analysis from recognized authorities in the field
+
+Please analyze this YouTube video and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
         """.strip()
         
         return content_for_analysis
@@ -983,6 +1012,8 @@ CRITICAL INSTRUCTIONS:
 - If this is an image, analyze the visual content and any text present
 - Provide specific evidence from the content, not generic statements
 - Give peer-reviewed references that are RELEVANT to the specific claims made in the content
+- If the content shows "VIDEO ANALYSIS" or "YOUTUBE VIDEO ANALYSIS", analyze the provided metadata and structure
+- If the content shows "FACT-CHECKING ANALYSIS", provide a comprehensive assessment based on the analysis framework
 
 TASK: Provide a comprehensive analysis with the following structure:
 
