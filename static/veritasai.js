@@ -1,5 +1,5 @@
 // Global variables
-console.log('VeritasAI JavaScript loaded - v1.7 - ENHANCED ERROR DEBUGGING');
+console.log('VeritasAI JavaScript loaded - v1.8 - FORCE DEPLOY');
 let conversations = [];
 let currentConversationId = null;
 let currentContext = null; // Store the latest prediction context
