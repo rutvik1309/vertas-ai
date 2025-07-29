@@ -519,7 +519,7 @@ def process_youtube_url(url):
         # Import yt-dlp for YouTube video extraction
         import yt_dlp
         
-        # Configure yt-dlp options
+        # Configure yt-dlp options for comprehensive extraction
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
@@ -528,40 +528,75 @@ def process_youtube_url(url):
             'writeautomaticsub': True,
             'subtitleslangs': ['en'],
             'skip_download': True,  # Don't download the video, just extract info
+            'extract_info': True,
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Extract video information
+            # Extract comprehensive video information
             info = ydl.extract_info(url, download=False)
             
-            # Extract key information
+            # Extract detailed information
             title = info.get('title', '')
             description = info.get('description', '')
             uploader = info.get('uploader', '')
+            channel_url = info.get('channel_url', '')
             view_count = info.get('view_count', 0)
             like_count = info.get('like_count', 0)
+            dislike_count = info.get('dislike_count', 0)
             duration = info.get('duration', 0)
+            upload_date = info.get('upload_date', '')
+            tags = info.get('tags', [])
+            categories = info.get('categories', [])
             
-            # Try to get subtitles/transcript
+            # Try to get subtitles/transcript with multiple methods
             transcript = ""
             try:
-                # Get automatic subtitles if available
+                # Method 1: Get manual subtitles
                 if 'subtitles' in info and 'en' in info['subtitles']:
                     transcript = info['subtitles']['en'][0]['data']
+                # Method 2: Get automatic captions
                 elif 'automatic_captions' in info and 'en' in info['automatic_captions']:
                     transcript = info['automatic_captions']['en'][0]['data']
+                # Method 3: Try to extract from available subtitles
+                elif 'subtitles' in info:
+                    for lang, subs in info['subtitles'].items():
+                        if subs and len(subs) > 0:
+                            transcript = subs[0]['data']
+                            break
             except Exception as e:
                 print(f"Could not extract transcript: {e}")
             
-            # Combine all text content for analysis
+            # Extract key claims and topics from title and description
+            key_topics = []
+            if title:
+                key_topics.append(f"Title: {title}")
+            if description:
+                # Extract first 500 characters of description
+                desc_preview = description[:500] + "..." if len(description) > 500 else description
+                key_topics.append(f"Description: {desc_preview}")
+            
+            # Analyze uploader credibility
+            uploader_analysis = f"Uploader: {uploader}"
+            if channel_url:
+                uploader_analysis += f" (Channel: {channel_url})"
+            
+            # Combine all text content for comprehensive analysis
             content_for_analysis = f"""
+VIDEO ANALYSIS:
+{uploader_analysis}
 Title: {title}
-Uploader: {uploader}
-Description: {description}
-Transcript: {transcript}
-View Count: {view_count}
-Like Count: {like_count}
+Description: {description[:1000] if description else 'No description available'}
+Transcript: {transcript if transcript else 'No transcript available'}
 Duration: {duration} seconds
+Upload Date: {upload_date}
+View Count: {view_count:,} views
+Like Count: {like_count:,} likes
+Dislike Count: {dislike_count:,} dislikes
+Tags: {', '.join(tags[:10]) if tags else 'No tags'}
+Categories: {', '.join(categories) if categories else 'No categories'}
+
+KEY CONTENT TO ANALYZE:
+{chr(10).join(key_topics)}
             """.strip()
             
             if not content_for_analysis.strip():
@@ -891,11 +926,11 @@ def index():
 
         label_map = {0: "Fake", 1: "Real"}
 
-        # Get comprehensive Gemini reasoning with enhanced analysis
-        prompt = f"""You are an expert fact-checker and news analyst. Analyze this content and provide a definitive assessment of whether it's FAKE or REAL news.
+        # Get comprehensive Gemini reasoning with enhanced analysis and peer-reviewed references
+        prompt = f"""You are an expert fact-checker and news analyst. Analyze this content and provide a definitive assessment with comprehensive peer-reviewed references.
 
 CONTENT TO ANALYZE:
-{text[:3000]}
+{text[:4000]}
 
 TASK: Provide a comprehensive analysis with the following structure:
 
@@ -906,14 +941,24 @@ TASK: Provide a comprehensive analysis with the following structure:
 5. **RED FLAGS** (if fake): List warning signs that indicate fake news
 6. **CREDIBILITY FACTORS** (if real): List factors that make this credible
 7. **VERIFICATION METHODS**: How this can be verified or fact-checked
-8. **RECOMMENDED SOURCES**: Credible sources for further verification
+8. **PEER-REVIEWED REFERENCES**: Provide academic and authoritative sources
 
 IMPORTANT: 
 - Be definitive in your assessment (FAKE or REAL)
 - Provide specific evidence from the content
 - Consider source credibility, claims made, and verifiability
-- For YouTube videos, analyze the title, description, and transcript
+- For YouTube videos, analyze the title, description, transcript, and uploader credibility
 - For news articles, check for sensationalism, source reliability, and factual claims
+- Provide peer-reviewed academic sources, government reports, and authoritative fact-checking organizations
+- Include specific studies, reports, or publications that support your analysis
+
+PEER-REVIEWED SOURCES TO INCLUDE:
+- Academic journals (Nature, Science, JAMA, etc.)
+- Government reports and official statements
+- Reputable news organizations (AP, Reuters, BBC, etc.)
+- Fact-checking organizations (Snopes, FactCheck.org, PolitiFact)
+- Expert analysis from recognized authorities
+- Official statistics and data sources
 
 Respond in this JSON format:
 {{
@@ -924,7 +969,14 @@ Respond in this JSON format:
   "red_flags": ["Warning sign 1", "Warning sign 2"] (only if fake),
   "credibility_factors": ["Factor 1", "Factor 2"] (only if real),
   "verification": "How to verify this story...",
-  "sources": ["https://reliable-source.com/...", "https://factcheck.org/..."]
+  "peer_reviewed_sources": [
+    {{
+      "title": "Source title",
+      "url": "https://source-url.com",
+      "type": "Academic/Government/News/FactCheck",
+      "relevance": "How this source supports the analysis"
+    }}
+  ]
 }}"""
 
         reasoning_output = None
@@ -958,11 +1010,32 @@ Respond in this JSON format:
                     ai_verdict = parsed.get("verdict", "UNKNOWN")
                     ai_confidence = parsed.get("confidence", "Medium")
                     reasoning_output = parsed.get("reasoning", "")
-                    references_output = parsed.get("sources", [])
+                    peer_reviewed_sources = parsed.get("peer_reviewed_sources", [])
                     evidence = parsed.get("evidence", [])
                     red_flags = parsed.get("red_flags", [])
                     credibility_factors = parsed.get("credibility_factors", [])
                     verification = parsed.get("verification", "")
+                    
+                    # Convert peer-reviewed sources to references format
+                    references_output = []
+                    if peer_reviewed_sources and isinstance(peer_reviewed_sources, list):
+                        for source in peer_reviewed_sources:
+                            if isinstance(source, dict):
+                                title = source.get("title", "Unknown Source")
+                                url = source.get("url", "")
+                                source_type = source.get("type", "Reference")
+                                relevance = source.get("relevance", "")
+                                
+                                if url:
+                                    references_output.append({
+                                        "title": title,
+                                        "url": url,
+                                        "type": source_type,
+                                        "relevance": relevance
+                                    })
+                    elif isinstance(peer_reviewed_sources, list):
+                        # Fallback if sources are just URLs
+                        references_output = peer_reviewed_sources
                     
                     # Update prediction based on AI analysis
                     if ai_verdict.upper() == "FAKE":
@@ -1026,11 +1099,32 @@ Respond in this JSON format:
                                 ai_verdict = parsed.get("verdict", "UNKNOWN")
                                 ai_confidence = parsed.get("confidence", "Medium")
                                 reasoning_output = parsed.get("reasoning", "")
-                                references_output = parsed.get("sources", [])
+                                peer_reviewed_sources = parsed.get("peer_reviewed_sources", [])
                                 evidence = parsed.get("evidence", [])
                                 red_flags = parsed.get("red_flags", [])
                                 credibility_factors = parsed.get("credibility_factors", [])
                                 verification = parsed.get("verification", "")
+                                
+                                # Convert peer-reviewed sources to references format
+                                references_output = []
+                                if peer_reviewed_sources and isinstance(peer_reviewed_sources, list):
+                                    for source in peer_reviewed_sources:
+                                        if isinstance(source, dict):
+                                            title = source.get("title", "Unknown Source")
+                                            url = source.get("url", "")
+                                            source_type = source.get("type", "Reference")
+                                            relevance = source.get("relevance", "")
+                                            
+                                            if url:
+                                                references_output.append({
+                                                    "title": title,
+                                                    "url": url,
+                                                    "type": source_type,
+                                                    "relevance": relevance
+                                                })
+                                elif isinstance(peer_reviewed_sources, list):
+                                    # Fallback if sources are just URLs
+                                    references_output = peer_reviewed_sources
                                 
                                 # Update prediction based on AI analysis
                                 if ai_verdict.upper() == "FAKE":
@@ -1108,13 +1202,25 @@ Respond in this JSON format:
                 html += '</ul>'
                 return html
             
-            # Format references as hyperlinks (only once)
+            # Format references as hyperlinks with enhanced information
             def format_references_html(refs):
                 if not refs or not isinstance(refs, list):
                     return ''
-                html = '<br><b>References:</b><ul style="margin-left:1em;">'
+                html = '<br><b>🔬 Peer-Reviewed References:</b><ul style="margin-left:1em;">'
                 for ref in refs:
-                    if ref and isinstance(ref, str):
+                    if isinstance(ref, dict):
+                        title = ref.get("title", "Unknown Source")
+                        url = ref.get("url", "")
+                        source_type = ref.get("type", "Reference")
+                        relevance = ref.get("relevance", "")
+                        
+                        if url:
+                            html += f'<li><strong>{title}</strong> ({source_type})<br>'
+                            html += f'<a href="{url}" target="_blank">{url}</a>'
+                            if relevance:
+                                html += f'<br><em>Relevance: {relevance}</em>'
+                            html += '</li>'
+                    elif isinstance(ref, str):
                         html += f'<li><a href="{ref}" target="_blank">{ref}</a></li>'
                 html += '</ul>'
                 return html
