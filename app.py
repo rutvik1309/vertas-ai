@@ -526,11 +526,12 @@ def process_youtube_url(url):
         
         # Create a comprehensive analysis framework that works without external dependencies
         content_for_analysis = f"""
+ACTUAL CONTENT FOR ANALYSIS:
 YOUTUBE VIDEO FACT-CHECKING ANALYSIS:
 Video URL: {url}
 Video ID: {video_id}
 
-COMPREHENSIVE ANALYSIS FRAMEWORK:
+ANALYSIS CONTENT TO EVALUATE:
 
 This YouTube video requires thorough fact-checking analysis. Based on the video URL and ID, I will provide:
 
@@ -560,7 +561,13 @@ This YouTube video requires thorough fact-checking analysis. Based on the video 
    - Reference reputable fact-checking organizations' assessments
    - Include expert analysis from recognized authorities in the field
 
-Please analyze this YouTube video and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
+VIDEO METADATA FOR ANALYSIS:
+- Video ID: {video_id}
+- Platform: YouTube
+- Content Type: Video
+- Analysis Required: Fact-checking and credibility assessment
+
+Please analyze this YouTube video based on the provided framework and give a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
         """.strip()
         
         return content_for_analysis
@@ -906,6 +913,8 @@ CRITICAL INSTRUCTIONS:
 - If the content shows "FACT-CHECKING ANALYSIS", provide a comprehensive assessment based on the analysis framework
 - If the content shows "YOUTUBE VIDEO FACT-CHECKING ANALYSIS", analyze the video based on the comprehensive framework provided and give a definitive assessment
 - IMPORTANT: Do NOT say "without access to content" if the content shows analysis frameworks or structured information
+- If you see "ACTUAL CONTENT FOR ANALYSIS" or "ANALYSIS CONTENT TO EVALUATE", this IS the content to analyze
+- Provide specific peer-reviewed references, NOT "N/A - General Guidance"
 
 TASK: Provide a comprehensive analysis with the following structure:
 
