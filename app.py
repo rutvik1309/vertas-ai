@@ -525,6 +525,16 @@ def index():
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                             return jsonify({'error': 'OCR (pytesseract) is not available on this server. Please use text input instead.'}), 500
                         return render_template('index.html', prediction="OCR (pytesseract) is not available on this server. Please use text input instead.")
+                    except Exception as e:
+                        # Handle tesseract not installed error specifically
+                        if "tesseract is not installed" in str(e).lower():
+                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                                return jsonify({'error': 'OCR (tesseract) is not installed on this server. Please use text input instead.'}), 500
+                            return render_template('index.html', prediction="OCR (tesseract) is not installed on this server. Please use text input instead.")
+                        else:
+                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                                return jsonify({'error': f'Failed to process image: {str(e)}'}), 500
+                            return render_template('index.html', prediction=f"Failed to process image: {str(e)}")
                 except Exception as e:
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return jsonify({'error': f'Failed to process image: {str(e)}'}), 500
@@ -582,10 +592,16 @@ def index():
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                             return jsonify({'error': f'Video processing libraries are not available on this server: {str(ie)}. Please use text input instead.'}), 500
                         return render_template('index.html', prediction=f"Video processing libraries are not available on this server: {str(ie)}. Please use text input instead.")
-                except Exception as e:
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return jsonify({'error': f'Failed to process video: {str(e)}'}), 500
-                    return render_template('index.html', prediction=f"Failed to process video: {str(e)}")
+                    except Exception as e:
+                        # Handle ffmpeg not installed error specifically
+                        if "ffmpeg" in str(e).lower() or "no such file" in str(e).lower():
+                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                                return jsonify({'error': 'Video processing (ffmpeg) is not installed on this server. Please use text input instead.'}), 500
+                            return render_template('index.html', prediction="Video processing (ffmpeg) is not installed on this server. Please use text input instead.")
+                        else:
+                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                                return jsonify({'error': f'Failed to process video: {str(e)}'}), 500
+                            return render_template('index.html', prediction=f"Failed to process video: {str(e)}")
             else:
                 # Handle text files
                 try:
