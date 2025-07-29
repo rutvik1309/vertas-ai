@@ -1,5 +1,5 @@
 // Global variables
-console.log('VeritasAI JavaScript loaded - v1.6 - CACHE BUSTED');
+console.log('VeritasAI JavaScript loaded - v1.7 - ENHANCED ERROR DEBUGGING');
 let conversations = [];
 let currentConversationId = null;
 let currentContext = null; // Store the latest prediction context
@@ -314,14 +314,25 @@ async function handlePredictionRequest(input) {
     });
     
     if (!response.ok) {
+      console.log('Response not ok, status:', response.status);
       // Try to parse JSON error response first
       try {
         const responseClone = response.clone();
         const errorData = await responseClone.json();
+        console.log('Parsed error data:', errorData);
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       } catch (jsonError) {
-        // If JSON parsing fails, throw the original error
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.log('JSON parsing failed:', jsonError);
+        // If JSON parsing fails, try to get text
+        try {
+          const textResponse = response.clone();
+          const errorText = await textResponse.text();
+          console.log('Error text:', errorText);
+          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        } catch (textError) {
+          console.log('Text parsing also failed:', textError);
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
       }
     }
     
@@ -486,14 +497,25 @@ async function handleFilePrediction() {
     });
     
     if (!response.ok) {
+      console.log('File prediction response not ok, status:', response.status);
       // Try to parse JSON error response first
       try {
         const responseClone = response.clone();
         const errorData = await responseClone.json();
+        console.log('File prediction parsed error data:', errorData);
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       } catch (jsonError) {
-        // If JSON parsing fails, throw the original error
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.log('File prediction JSON parsing failed:', jsonError);
+        // If JSON parsing fails, try to get text
+        try {
+          const textResponse = response.clone();
+          const errorText = await textResponse.text();
+          console.log('File prediction error text:', errorText);
+          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        } catch (textError) {
+          console.log('File prediction text parsing also failed:', textError);
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
       }
     }
     
