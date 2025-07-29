@@ -602,6 +602,10 @@ def index():
                             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                                 return jsonify({'error': f'Failed to process video: {str(e)}'}), 500
                             return render_template('index.html', prediction=f"Failed to process video: {str(e)}")
+                except Exception as e:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'error': f'Failed to process video: {str(e)}'}), 500
+                    return render_template('index.html', prediction=f"Failed to process video: {str(e)}")
             else:
                 # Handle text files
                 try:
