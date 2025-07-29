@@ -509,6 +509,21 @@ def process_media_url(url):
         print(f"❌ Error processing media URL {url}: {e}")
         return f"Error processing media URL: {str(e)}"
 
+def process_youtube_url(url):
+    """
+    Process YouTube URLs by extracting video information
+    """
+    try:
+        print(f"🎥 Processing YouTube URL: {url}")
+        
+        # For now, return a message indicating YouTube processing
+        # In a full implementation, you would use yt-dlp or similar to extract video info
+        return f"YouTube video detected: {url}\n\nNote: YouTube video processing requires additional setup with yt-dlp library. For now, please provide the video description or transcript manually."
+        
+    except Exception as e:
+        print(f"❌ Error processing YouTube URL {url}: {e}")
+        return f"Error processing YouTube URL: {str(e)}"
+
 def process_image_url(image_content):
     """
     Process image content using OCR
