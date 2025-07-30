@@ -1768,12 +1768,17 @@ def retrieve_context(text, n_results=5):
 @app.route('/health')
 def health():
     """Health check endpoint to keep the service alive"""
+    import os
+    files = os.listdir('.')
+    model_files = [f for f in files if f.endswith('.pkl')]
     return jsonify({
         'status': 'OK',
         'timestamp': time.time(),
         'service': 'VeritasAI',
         'model_loaded': pipeline is not None,
         'model_type': str(type(pipeline)) if pipeline is not None else "None",
+        'available_files': files[:10],  # First 10 files
+        'model_files': model_files,
         'version': '1.0.0'
     }), 200
 
