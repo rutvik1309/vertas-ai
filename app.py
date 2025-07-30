@@ -692,8 +692,8 @@ Please analyze this YouTube video content and provide a definitive FAKE/REAL ass
             print(f"❌ Could not extract video info: {ydl_error}")
         
         # Step 3: Final fallback - transcript unavailable
-        return """
-TRANSCRIPT UNAVAILABLE - YOUTUBE VIDEO ANALYSIS:
+        return f"""
+YOUTUBE VIDEO ANALYSIS - TRANSCRIPT UNAVAILABLE:
 
 VIDEO DETAILS:
 - Video URL: {url}
@@ -707,9 +707,16 @@ This YouTube video could not be analyzed because:
 2. The video may not have captions enabled
 3. The transcript extraction failed
 
+IMPORTANT NOTE:
+Most YouTube videos do not have captions available through the YouTube Transcript API.
+This is a common limitation and does not necessarily indicate a problem with the video.
+
 RECOMMENDATION:
 To properly analyze this video, we need access to the actual video content.
-Please try a different video with available captions, or provide the video description for analysis.
+Please try one of the following:
+1. Use a different video with available captions
+2. Provide the video description for analysis
+3. Share the video title and uploader information for basic assessment
 
 Please provide a definitive FAKE/REAL assessment based on the available information.
         """.strip()
@@ -873,9 +880,10 @@ def index():
                     print(f"🎥 Processing YouTube URL: {url}")
                     text = process_youtube_url(url)
                     if not text or not text.strip():
+                        error_msg = "Could not extract content from this YouTube video. Most YouTube videos don't have captions available through the API. Please try a different video with captions, or provide the video description for analysis."
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                            return jsonify({'error': 'Could not extract content from this YouTube video. Please try a different video or provide the transcript manually.'}), 400
-                        return render_template('index.html', prediction="Could not extract content from this YouTube video. Please try a different video or provide the transcript manually.")
+                            return jsonify({'error': error_msg}), 400
+                        return render_template('index.html', prediction=error_msg)
                     print(f"✅ Successfully processed YouTube URL, extracted {len(text)} characters")
                 # Check if it's a media URL (image, video, audio)
                 elif any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm', '.mp3', '.wav', '.m4a', '.flac', '.aac', '.ogg']):
@@ -1760,8 +1768,8 @@ def test_youtube_transcript():
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
         
-        # Test with a TED Talk that should have captions
-        video_id = "8jPQjJbbCjE"  # TED Talk: How to spot a misleading graph
+        # Test with a video that should have auto-generated captions
+        video_id = "jNQXAC9IVRw"  # Me at the zoo (first YouTube video)
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         transcript_text = " ".join([item['text'] for item in transcript])
         
