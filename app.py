@@ -511,7 +511,7 @@ def process_media_url(url):
 
 def process_youtube_url(url):
     """
-    Process YouTube URLs by extracting video information and analyzing content
+    Process YouTube URLs by extracting actual video content and analyzing it
     """
     try:
         print(f"🎥 Processing YouTube URL: {url}")
@@ -524,18 +524,154 @@ def process_youtube_url(url):
         
         video_id = video_id_match.group(1)
         
-        # Create a comprehensive analysis framework that works without external dependencies
-        content_for_analysis = f"""
+        # Try to extract actual video transcript using YouTube Transcript API
+        try:
+            from youtube_transcript_api import YouTubeTranscriptApi
+            
+            # Get transcript
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+            transcript_text = " ".join([entry['text'] for entry in transcript_list])
+            
+            print(f"✅ Successfully extracted transcript: {len(transcript_text)} characters")
+            
+            # Create comprehensive analysis with actual video content
+            content_for_analysis = f"""
 ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE:
 
 VIDEO DETAILS:
 - Video URL: {url}
 - Video ID: {video_id}
 - Platform: YouTube
-- Content Type: Video requiring fact-checking analysis
+- Content Type: Video with transcript
+
+ACTUAL VIDEO TRANSCRIPT:
+{transcript_text}
 
 VIDEO CONTENT ANALYSIS:
-This YouTube video has been identified for fact-checking. The video content includes:
+This YouTube video has been transcribed and requires comprehensive fact-checking analysis. The video content includes:
+
+1. **ACTUAL VIDEO CONTENT**:
+   - Full transcript of the video
+   - All spoken content and claims made
+   - Statements and assertions by the speaker
+   - Tone and presentation style evident in transcript
+
+2. **CONTENT CHARACTERISTICS**:
+   - Video is hosted on YouTube platform
+   - Transcript available for detailed analysis
+   - Contains actual claims, statements, or assertions
+   - May have bias indicators or sensationalist content
+
+3. **ANALYSIS REQUIREMENTS**:
+   - Assess video credibility and accuracy based on actual content
+   - Identify potential misinformation indicators in the transcript
+   - Cross-reference claims with peer-reviewed sources
+   - Evaluate the factual accuracy of statements made
+   - Check for sensationalist language or emotional appeals
+
+4. **FACT-CHECKING CRITERIA**:
+   - Source credibility assessment
+   - Claim verification against authoritative sources
+   - Misinformation indicator detection in actual content
+   - Peer-reviewed reference identification for claims made
+   - Bias and manipulation detection in transcript
+
+VIDEO CONTENT SUMMARY:
+This is a YouTube video with a complete transcript that requires comprehensive fact-checking analysis. The video has been transcribed and needs assessment for accuracy, credibility, and potential misinformation indicators based on the actual content.
+
+Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
+            """.strip()
+            
+            return content_for_analysis
+            
+        except Exception as transcript_error:
+            print(f"❌ Could not extract transcript: {transcript_error}")
+            
+            # Fallback: Try to get video info using yt-dlp
+            try:
+                import yt_dlp
+                
+                ydl_opts = {
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extract_flat': False,
+                    'skip_download': True,
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    
+                    title = info.get('title', '')
+                    description = info.get('description', '')
+                    uploader = info.get('uploader', '')
+                    
+                    # Create analysis with available metadata
+                    content_for_analysis = f"""
+ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE:
+
+VIDEO DETAILS:
+- Video URL: {url}
+- Video ID: {video_id}
+- Platform: YouTube
+- Content Type: Video with metadata
+
+ACTUAL VIDEO CONTENT:
+Title: {title}
+Uploader: {uploader}
+Description: {description[:1000] if description else 'No description available'}
+
+VIDEO CONTENT ANALYSIS:
+This YouTube video has been identified and requires comprehensive fact-checking analysis. The video content includes:
+
+1. **ACTUAL VIDEO CONTENT**:
+   - Video title: {title}
+   - Uploader: {uploader}
+   - Description: {description[:500] if description else 'No description'}
+   - Claims and content evident in title and description
+
+2. **CONTENT CHARACTERISTICS**:
+   - Video is hosted on YouTube platform
+   - Title and description available for analysis
+   - Contains actual claims, statements, or assertions
+   - May have bias indicators or sensationalist content
+
+3. **ANALYSIS REQUIREMENTS**:
+   - Assess video credibility and accuracy based on available content
+   - Identify potential misinformation indicators in title/description
+   - Cross-reference claims with peer-reviewed sources
+   - Evaluate the factual accuracy of statements made
+   - Check for sensationalist language or emotional appeals
+
+4. **FACT-CHECKING CRITERIA**:
+   - Source credibility assessment
+   - Claim verification against authoritative sources
+   - Misinformation indicator detection in available content
+   - Peer-reviewed reference identification for claims made
+   - Bias and manipulation detection in title/description
+
+VIDEO CONTENT SUMMARY:
+This is a YouTube video with available metadata that requires comprehensive fact-checking analysis. The video has been identified and needs assessment for accuracy, credibility, and potential misinformation indicators based on the available content.
+
+Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
+                    """.strip()
+                    
+                    return content_for_analysis
+                    
+            except Exception as ydl_error:
+                print(f"❌ Could not extract video info: {ydl_error}")
+                
+                # Final fallback: Basic analysis framework
+                content_for_analysis = f"""
+YOUTUBE VIDEO CONTENT FOR FACT-CHECKING ANALYSIS:
+
+VIDEO DETAILS:
+- Video URL: {url}
+- Video ID: {video_id}
+- Platform: YouTube
+- Content Type: Video requiring fact-checking
+
+VIDEO CONTENT ANALYSIS:
+This YouTube video requires comprehensive fact-checking analysis. The video has been identified and requires assessment based on:
 
 1. **VIDEO METADATA**:
    - Video ID: {video_id}
@@ -567,9 +703,9 @@ VIDEO CONTENT SUMMARY:
 This is a YouTube video that requires comprehensive fact-checking analysis. The video has been identified and needs assessment for accuracy, credibility, and potential misinformation indicators.
 
 Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
-        """.strip()
-        
-        return content_for_analysis
+                """.strip()
+                
+                return content_for_analysis
             
     except Exception as e:
         print(f"❌ Error processing YouTube URL {url}: {e}")
