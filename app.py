@@ -1760,8 +1760,8 @@ def test_youtube_transcript():
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
         
-        # Test with a popular video that should have captions
-        video_id = "9bZkp7q19f0"  # Gangnam Style
+        # Test with a TED Talk that should have captions
+        video_id = "8jPQjJbbCjE"  # TED Talk: How to spot a misleading graph
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         transcript_text = " ".join([item['text'] for item in transcript])
         
