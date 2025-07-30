@@ -509,18 +509,28 @@ def process_media_url(url):
         print(f"❌ Error processing media URL {url}: {e}")
         return f"Error processing media URL: {str(e)}"
 
-def extract_video_id(url):
+def is_youtube_url(url):
+    """Check if URL is a YouTube link"""
+    return "youtube.com" in url or "youtu.be" in url
+
+def extract_youtube_id(url):
     """Extract YouTube video ID from URL"""
     import re
-    match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
+    match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
     return match.group(1) if match else None
 
-def fetch_transcript(video_id):
-    """Fetch transcript using youtube-transcript-api"""
+def get_transcript(video_id):
+    """Get transcript using youtube-transcript-api"""
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
+        print(f"🔄 Attempting to fetch transcript for video ID: {video_id}")
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        return " ".join([item['text'] for item in transcript])
+        transcript_text = " ".join([t["text"] for t in transcript])
+        print(f"✅ Successfully fetched transcript: {len(transcript_text)} characters")
+        return transcript_text
+    except ImportError as e:
+        print(f"❌ YouTube Transcript API not available: {e}")
+        return None
     except Exception as e:
         print(f"❌ Could not fetch transcript: {e}")
         return None
@@ -532,18 +542,23 @@ def process_youtube_url(url):
     try:
         print(f"🎥 Processing YouTube URL: {url}")
         
+        # Check if it's a YouTube URL
+        if not is_youtube_url(url):
+            return "Not a YouTube URL"
+        
         # Extract video ID from URL
-        video_id = extract_video_id(url)
+        video_id = extract_youtube_id(url)
         if not video_id:
-            return "Invalid YouTube URL format"
+            return "Could not extract video ID from YouTube URL"
         
         print(f"✅ Extracted video ID: {video_id}")
         
         # Step 1: Try to fetch actual video transcript
-        transcript_text = fetch_transcript(video_id)
+        transcript_text = get_transcript(video_id)
         
         if transcript_text:
             print(f"✅ Successfully extracted transcript: {len(transcript_text)} characters")
+            print(f"📝 Transcript preview: {transcript_text[:200]}...")
             
             # Create comprehensive analysis with actual video content
             content_for_analysis = f"""
@@ -676,52 +691,28 @@ Please analyze this YouTube video content and provide a definitive FAKE/REAL ass
         except Exception as ydl_error:
             print(f"❌ Could not extract video info: {ydl_error}")
         
-        # Step 3: Final fallback - basic analysis framework
-        content_for_analysis = f"""
-YOUTUBE VIDEO CONTENT FOR FACT-CHECKING ANALYSIS:
+        # Step 3: Final fallback - transcript unavailable
+        return """
+TRANSCRIPT UNAVAILABLE - YOUTUBE VIDEO ANALYSIS:
 
 VIDEO DETAILS:
 - Video URL: {url}
 - Video ID: {video_id}
 - Platform: YouTube
-- Content Type: Video requiring fact-checking
+- Content Type: Video with unavailable transcript
 
-VIDEO CONTENT ANALYSIS:
-This YouTube video requires comprehensive fact-checking analysis. The video has been identified and requires assessment based on:
+ANALYSIS STATUS:
+This YouTube video could not be analyzed because:
+1. No transcript is available for this video
+2. The video may not have captions enabled
+3. The transcript extraction failed
 
-1. **VIDEO METADATA**:
-   - Video ID: {video_id}
-   - Platform: YouTube
-   - Content Type: Video
-   - Analysis Required: Fact-checking and credibility assessment
+RECOMMENDATION:
+To properly analyze this video, we need access to the actual video content.
+Please try a different video with available captions, or provide the video description for analysis.
 
-2. **CONTENT CHARACTERISTICS**:
-   - Video is hosted on YouTube platform
-   - Requires comprehensive fact-checking analysis
-   - May contain claims, statements, or assertions
-   - Could have bias indicators or sensationalist content
-
-3. **ANALYSIS REQUIREMENTS**:
-   - Assess video credibility and accuracy
-   - Identify potential misinformation indicators
-   - Cross-reference with peer-reviewed sources
-   - Evaluate uploader credibility and channel reputation
-   - Check for sensationalist language or emotional appeals
-
-4. **FACT-CHECKING CRITERIA**:
-   - Source credibility assessment
-   - Claim verification against authoritative sources
-   - Misinformation indicator detection
-   - Peer-reviewed reference identification
-   - Bias and manipulation detection
-
-VIDEO CONTENT SUMMARY:
-This is a YouTube video that requires comprehensive fact-checking analysis. The video has been identified and needs assessment for accuracy, credibility, and potential misinformation indicators.
-
-Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
+Please provide a definitive FAKE/REAL assessment based on the available information.
         """.strip()
-        
-        return content_for_analysis
             
     except Exception as e:
         print(f"❌ Error processing YouTube URL {url}: {e}")
@@ -877,17 +868,17 @@ def index():
             try:
                 print(f"🔍 Processing URL: {url}")
                 
-                # Check if it's a media URL (image, video, audio) or YouTube URL
-                media_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', 
-                                  '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm',
-                                  '.mp3', '.wav', '.m4a', '.flac', '.aac', '.ogg']
-                
-                # Check for YouTube URLs
-                is_youtube_url = 'youtube.com' in url.lower() or 'youtu.be' in url.lower()
-                
-                is_media_url = any(url.lower().endswith(ext) for ext in media_extensions) or is_youtube_url
-                
-                if is_media_url:
+                # Check if it's a YouTube URL first
+                if is_youtube_url(url):
+                    print(f"🎥 Processing YouTube URL: {url}")
+                    text = process_youtube_url(url)
+                    if not text or not text.strip():
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'error': 'Could not extract content from this YouTube video. Please try a different video or provide the transcript manually.'}), 400
+                        return render_template('index.html', prediction="Could not extract content from this YouTube video. Please try a different video or provide the transcript manually.")
+                    print(f"✅ Successfully processed YouTube URL, extracted {len(text)} characters")
+                # Check if it's a media URL (image, video, audio)
+                elif any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm', '.mp3', '.wav', '.m4a', '.flac', '.aac', '.ogg']):
                     # Handle media URLs
                     text = process_media_url(url)
                     if not text or not text.strip():
