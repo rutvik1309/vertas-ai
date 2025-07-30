@@ -524,7 +524,8 @@ def process_youtube_url(url):
         
         video_id = video_id_match.group(1)
         
-        # Try to extract actual video transcript using YouTube Transcript API
+        # Step 1: Try to get actual video transcript using YouTube Transcript API
+        transcript_text = ""
         try:
             from youtube_transcript_api import YouTubeTranscriptApi
             
@@ -534,79 +535,70 @@ def process_youtube_url(url):
             
             print(f"✅ Successfully extracted transcript: {len(transcript_text)} characters")
             
-            # Create comprehensive analysis with actual video content
-            content_for_analysis = f"""
-ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE:
-
-VIDEO DETAILS:
-- Video URL: {url}
-- Video ID: {video_id}
-- Platform: YouTube
-- Content Type: Video with transcript
-
-ACTUAL VIDEO TRANSCRIPT:
-{transcript_text}
-
-VIDEO CONTENT ANALYSIS:
-This YouTube video has been transcribed and requires comprehensive fact-checking analysis. The video content includes:
-
-1. **ACTUAL VIDEO CONTENT**:
-   - Full transcript of the video
-   - All spoken content and claims made
-   - Statements and assertions by the speaker
-   - Tone and presentation style evident in transcript
-
-2. **CONTENT CHARACTERISTICS**:
-   - Video is hosted on YouTube platform
-   - Transcript available for detailed analysis
-   - Contains actual claims, statements, or assertions
-   - May have bias indicators or sensationalist content
-
-3. **ANALYSIS REQUIREMENTS**:
-   - Assess video credibility and accuracy based on actual content
-   - Identify potential misinformation indicators in the transcript
-   - Cross-reference claims with peer-reviewed sources
-   - Evaluate the factual accuracy of statements made
-   - Check for sensationalist language or emotional appeals
-
-4. **FACT-CHECKING CRITERIA**:
-   - Source credibility assessment
-   - Claim verification against authoritative sources
-   - Misinformation indicator detection in actual content
-   - Peer-reviewed reference identification for claims made
-   - Bias and manipulation detection in transcript
-
-VIDEO CONTENT SUMMARY:
-This is a YouTube video with a complete transcript that requires comprehensive fact-checking analysis. The video has been transcribed and needs assessment for accuracy, credibility, and potential misinformation indicators based on the actual content.
-
-Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
-            """.strip()
-            
-            return content_for_analysis
-            
         except Exception as transcript_error:
             print(f"❌ Could not extract transcript: {transcript_error}")
             
-            # Fallback: Try to get video info using yt-dlp
+            # Step 2: Try to download audio and transcribe with Whisper
             try:
                 import yt_dlp
+                import whisper
+                import tempfile
+                import os
                 
+                print("🔄 Attempting audio download and Whisper transcription...")
+                
+                # Download audio using yt-dlp
                 ydl_opts = {
-                    'quiet': True,
-                    'no_warnings': True,
-                    'extract_flat': False,
-                    'skip_download': True,
+                    'format': 'bestaudio/best',
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    }],
+                    'outtmpl': 'temp_audio_%(id)s.%(ext)s',
                 }
                 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
+                    # Download audio
+                    info = ydl.extract_info(url, download=True)
+                    audio_file = f"temp_audio_{video_id}.mp3"
                     
-                    title = info.get('title', '')
-                    description = info.get('description', '')
-                    uploader = info.get('uploader', '')
+                    if os.path.exists(audio_file):
+                        # Transcribe with Whisper
+                        model = whisper.load_model("base")
+                        result = model.transcribe(audio_file)
+                        transcript_text = result['text']
+                        
+                        # Clean up audio file
+                        os.remove(audio_file)
+                        
+                        print(f"✅ Successfully transcribed audio: {len(transcript_text)} characters")
+                    else:
+                        raise Exception("Audio file not downloaded")
+                        
+            except Exception as whisper_error:
+                print(f"❌ Could not transcribe audio: {whisper_error}")
+                
+                # Step 3: Fallback to video metadata
+                try:
+                    import yt_dlp
                     
-                    # Create analysis with available metadata
-                    content_for_analysis = f"""
+                    ydl_opts = {
+                        'quiet': True,
+                        'no_warnings': True,
+                        'extract_flat': False,
+                        'skip_download': True,
+                    }
+                    
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                        
+                        title = info.get('title', '')
+                        description = info.get('description', '')
+                        uploader = info.get('uploader', '')
+                        
+                        # Create analysis with available metadata
+                        content_for_analysis = f"""
 ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE:
 
 VIDEO DETAILS:
@@ -653,15 +645,67 @@ VIDEO CONTENT SUMMARY:
 This is a YouTube video with available metadata that requires comprehensive fact-checking analysis. The video has been identified and needs assessment for accuracy, credibility, and potential misinformation indicators based on the available content.
 
 Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
-                    """.strip()
-                    
-                    return content_for_analysis
-                    
-            except Exception as ydl_error:
-                print(f"❌ Could not extract video info: {ydl_error}")
-                
-                # Final fallback: Basic analysis framework
-                content_for_analysis = f"""
+                        """.strip()
+                        
+                        return content_for_analysis
+                        
+                except Exception as ydl_error:
+                    print(f"❌ Could not extract video info: {ydl_error}")
+                    transcript_text = ""
+        
+        # If we have transcript text, create comprehensive analysis
+        if transcript_text:
+            content_for_analysis = f"""
+ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE:
+
+VIDEO DETAILS:
+- Video URL: {url}
+- Video ID: {video_id}
+- Platform: YouTube
+- Content Type: Video with actual transcript
+
+ACTUAL VIDEO TRANSCRIPT (REAL CONTENT):
+{transcript_text}
+
+VIDEO CONTENT ANALYSIS:
+This YouTube video has been transcribed and requires comprehensive fact-checking analysis. The video content includes:
+
+1. **ACTUAL VIDEO CONTENT**:
+   - Full transcript of the video (real spoken content)
+   - All claims, statements, and assertions made by the speaker
+   - Actual content that can be fact-checked
+   - Tone and presentation style evident in transcript
+
+2. **CONTENT CHARACTERISTICS**:
+   - Video is hosted on YouTube platform
+   - Real transcript available for detailed analysis
+   - Contains actual claims, statements, or assertions
+   - May have bias indicators or sensationalist content
+
+3. **ANALYSIS REQUIREMENTS**:
+   - Assess video credibility and accuracy based on actual spoken content
+   - Identify potential misinformation indicators in the real transcript
+   - Cross-reference claims with peer-reviewed sources
+   - Evaluate the factual accuracy of statements made
+   - Check for sensationalist language or emotional appeals
+
+4. **FACT-CHECKING CRITERIA**:
+   - Source credibility assessment
+   - Claim verification against authoritative sources
+   - Misinformation indicator detection in actual content
+   - Peer-reviewed reference identification for claims made
+   - Bias and manipulation detection in transcript
+
+VIDEO CONTENT SUMMARY:
+This is a YouTube video with a complete transcript of the actual spoken content. The video has been transcribed and needs assessment for accuracy, credibility, and potential misinformation indicators based on the REAL video content.
+
+Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
+            """.strip()
+            
+            return content_for_analysis
+        else:
+            # Final fallback: Basic analysis framework
+            content_for_analysis = f"""
 YOUTUBE VIDEO CONTENT FOR FACT-CHECKING ANALYSIS:
 
 VIDEO DETAILS:
@@ -703,9 +747,9 @@ VIDEO CONTENT SUMMARY:
 This is a YouTube video that requires comprehensive fact-checking analysis. The video has been identified and needs assessment for accuracy, credibility, and potential misinformation indicators.
 
 Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
-                """.strip()
-                
-                return content_for_analysis
+            """.strip()
+            
+            return content_for_analysis
             
     except Exception as e:
         print(f"❌ Error processing YouTube URL {url}: {e}")
