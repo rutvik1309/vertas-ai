@@ -51,6 +51,7 @@ veritas_ai.db
 *.pkl
 !final_pipeline_clean.pkl
 !final_pipeline_clean_fixed.pkl
+!final_pipeline_2025_v1.pkl
 
 
 # Logs

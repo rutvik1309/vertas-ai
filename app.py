@@ -340,6 +340,11 @@ try:
     print(f"📂 Checking for model files...")
     
     # Check if model files exist
+    if os.path.exists("final_pipeline_2025_v1.pkl"):
+        print("✅ Found final_pipeline_2025_v1.pkl")
+    else:
+        print("❌ final_pipeline_2025_v1.pkl not found")
+    
     if os.path.exists("final_pipeline_clean_fixed.pkl"):
         print("✅ Found final_pipeline_clean_fixed.pkl")
     else:
@@ -391,28 +396,41 @@ try:
     
     print("✅ Aggressive NumPy compatibility fixes applied")
     
-    # Try to load the fixed model with error suppression
+    # Try to load the new model with detailed logging
     try:
-        print("🔄 Attempting to load fixed model...")
+        print("🔄 Attempting to load final_pipeline_2025_v1.pkl...")
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             import joblib
-            pipeline = joblib.load("final_pipeline_clean_fixed.pkl")
-        print("✅ Fixed MLP pipeline loaded successfully")
+            pipeline = joblib.load("final_pipeline_2025_v1.pkl")
+        print(f"🔍 Loaded model from final_pipeline_2025_v1.pkl: {type(pipeline)}")
+        print(f"✅ Model has predict: {hasattr(pipeline, 'predict')}")
+        print(f"✅ Model has predict_proba: {hasattr(pipeline, 'predict_proba')}")
+        print("✅ New MLP pipeline loaded successfully")
     except Exception as e1:
-        print(f"❌ Failed to load fixed model: {e1}")
-        # Fallback to original model
+        print(f"❌ Failed to load new model: {e1}")
+        # Fallback to fixed model
         try:
-            print("🔄 Attempting to load original model...")
+            print("🔄 Attempting to load fixed model...")
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 import joblib
-                pipeline = joblib.load("final_pipeline_clean.pkl")
-            print("✅ Original MLP pipeline loaded successfully")
+                pipeline = joblib.load("final_pipeline_clean_fixed.pkl")
+            print("✅ Fixed MLP pipeline loaded successfully")
         except Exception as e2:
-            print(f"❌ Failed to load original model: {e2}")
-            raise e2
+            print(f"❌ Failed to load fixed model: {e2}")
+            # Fallback to original model
+            try:
+                print("🔄 Attempting to load original model...")
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    import joblib
+                    pipeline = joblib.load("final_pipeline_clean.pkl")
+                print("✅ Original MLP pipeline loaded successfully")
+            except Exception as e3:
+                print(f"❌ Failed to load original model: {e3}")
+                raise e3
         
 except Exception as e:
     print(f"❌ Error loading MLP pipeline: {e}")
@@ -1811,6 +1829,62 @@ def test_youtube_transcript():
             "error": str(e),
             "message": "YouTube Transcript API is not working"
         })
+
+@app.route('/test-model-loading')
+def test_model_loading():
+    """Test model loading in deployment environment"""
+    try:
+        import joblib
+        import os
+        
+        # Check what files are available
+        files = os.listdir('.')
+        model_files = [f for f in files if f.endswith('.pkl')]
+        
+        results = {}
+        
+        for model_file in model_files:
+            try:
+                print(f"🔄 Testing {model_file}...")
+                model = joblib.load(model_file)
+                
+                results[model_file] = {
+                    'success': True,
+                    'type': str(type(model)),
+                    'has_predict': hasattr(model, 'predict'),
+                    'has_predict_proba': hasattr(model, 'predict_proba'),
+                    'is_callable': callable(model),
+                    'dir_attributes': dir(model)[:10]  # First 10 attributes
+                }
+                
+                # Test prediction if possible
+                if hasattr(model, 'predict'):
+                    try:
+                        test_text = "This is a test article."
+                        prediction = model.predict([test_text])
+                        results[model_file]['test_prediction'] = str(prediction)
+                    except Exception as e:
+                        results[model_file]['test_prediction_error'] = str(e)
+                        
+            except Exception as e:
+                results[model_file] = {
+                    'success': False,
+                    'error': str(e),
+                    'error_type': str(type(e))
+                }
+        
+        return jsonify({
+            'status': 'success',
+            'available_files': files[:10],
+            'model_files': model_files,
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 @app.route('/get_context')
 def get_context():
