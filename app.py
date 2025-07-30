@@ -392,27 +392,27 @@ try:
     print("✅ Aggressive NumPy compatibility fixes applied")
     
     # Try to load the fixed model with error suppression
-    try:
-        print("🔄 Attempting to load fixed model...")
-        import warnings
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            with open("final_pipeline_clean_fixed.pkl", "rb") as f:
-                pipeline = pickle.load(f)
-        print("✅ Fixed MLP pipeline loaded successfully")
-    except Exception as e1:
-        print(f"❌ Failed to load fixed model: {e1}")
-        # Fallback to original model
-        try:
-            print("🔄 Attempting to load original model...")
+            try:
+            print("🔄 Attempting to load fixed model...")
+            import warnings
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                with open("final_pipeline_clean.pkl", "rb") as f:
-                    pipeline = pickle.load(f)
-            print("✅ Original MLP pipeline loaded successfully")
-        except Exception as e2:
-            print(f"❌ Failed to load original model: {e2}")
-            raise e2
+                import joblib
+                pipeline = joblib.load("final_pipeline_clean_fixed.pkl")
+            print("✅ Fixed MLP pipeline loaded successfully")
+        except Exception as e1:
+            print(f"❌ Failed to load fixed model: {e1}")
+            # Fallback to original model
+            try:
+                print("🔄 Attempting to load original model...")
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    import joblib
+                    pipeline = joblib.load("final_pipeline_clean.pkl")
+                print("✅ Original MLP pipeline loaded successfully")
+            except Exception as e2:
+                print(f"❌ Failed to load original model: {e2}")
+                raise e2
         
 except Exception as e:
     print(f"❌ Error loading MLP pipeline: {e}")
@@ -1772,6 +1772,8 @@ def health():
         'status': 'OK',
         'timestamp': time.time(),
         'service': 'VeritasAI',
+        'model_loaded': pipeline is not None,
+        'model_type': str(type(pipeline)) if pipeline is not None else "None",
         'version': '1.0.0'
     }), 200
 
