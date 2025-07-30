@@ -1754,6 +1754,31 @@ def ping():
     """Simple ping endpoint for keep-alive"""
     return "pong", 200
 
+@app.route('/test-youtube-transcript')
+def test_youtube_transcript():
+    """Test endpoint to verify YouTube Transcript API functionality"""
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        
+        # Test with a popular video that should have captions
+        video_id = "9bZkp7q19f0"  # Gangnam Style
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript_text = " ".join([item['text'] for item in transcript])
+        
+        return jsonify({
+            "status": "success",
+            "video_id": video_id,
+            "transcript_length": len(transcript_text),
+            "transcript_preview": transcript_text[:200] + "...",
+            "message": "YouTube Transcript API is working correctly"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "message": "YouTube Transcript API is not working"
+        })
+
 @app.route('/get_context')
 def get_context():
     return jsonify({
