@@ -8,6 +8,7 @@ chromadb==0.4.22
 newspaper3k==0.2.8
 nltk==3.8.1
 scikit-learn==1.7.1
+joblib==1.4.2
 beautifulsoup4==4.13.3
 requests==2.32.3
 Pillow==11.0.0
