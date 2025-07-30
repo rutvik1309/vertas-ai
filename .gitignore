@@ -49,6 +49,8 @@ veritas_ai.db
 
 # Model files (exclude all pickle files except the fixed one)
 *.pkl
+!final_pipeline_clean.pkl
+!final_pipeline_clean_fixed.pkl
 
 
 # Logs
