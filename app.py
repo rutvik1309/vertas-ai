@@ -526,55 +526,45 @@ def process_youtube_url(url):
         
         # Create a comprehensive analysis framework that works without external dependencies
         content_for_analysis = f"""
-YOUTUBE VIDEO CONTENT FOR FACT-CHECKING ANALYSIS:
+ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE:
 
-VIDEO INFORMATION:
+VIDEO DETAILS:
 - Video URL: {url}
 - Video ID: {video_id}
 - Platform: YouTube
-- Content Type: Video requiring fact-checking
+- Content Type: Video requiring fact-checking analysis
 
-ANALYSIS FRAMEWORK TO EVALUATE:
+VIDEO CONTENT ANALYSIS:
+This YouTube video has been identified for fact-checking. The video content includes:
 
-This YouTube video requires comprehensive fact-checking analysis. The video has been identified and requires assessment based on:
+1. **VIDEO METADATA**:
+   - Video ID: {video_id}
+   - Platform: YouTube
+   - Content Type: Video
+   - Analysis Required: Fact-checking and credibility assessment
 
-1. **CONTENT ANALYSIS**: 
-   - Video title and description analysis
-   - Transcript content evaluation (if available)
-   - Key claims and statements identification
-   - Tone and presentation style assessment
-   - Potential bias indicators detection
+2. **CONTENT CHARACTERISTICS**:
+   - Video is hosted on YouTube platform
+   - Requires comprehensive fact-checking analysis
+   - May contain claims, statements, or assertions
+   - Could have bias indicators or sensationalist content
 
-2. **SOURCE CREDIBILITY ASSESSMENT**:
-   - Uploader channel reputation evaluation
-   - Previous content history analysis
-   - Channel subscriber and engagement metrics
-   - Credibility indicators assessment
+3. **ANALYSIS REQUIREMENTS**:
+   - Assess video credibility and accuracy
+   - Identify potential misinformation indicators
+   - Cross-reference with peer-reviewed sources
+   - Evaluate uploader credibility and channel reputation
+   - Check for sensationalist language or emotional appeals
 
-3. **CLAIM VERIFICATION**:
-   - Cross-referencing with peer-reviewed academic sources
-   - Verification against government reports and official statistics
-   - Comparison with reputable news organizations
-   - Fact-checking organization assessments
+4. **FACT-CHECKING CRITERIA**:
+   - Source credibility assessment
+   - Claim verification against authoritative sources
+   - Misinformation indicator detection
+   - Peer-reviewed reference identification
+   - Bias and manipulation detection
 
-4. **MISINFORMATION INDICATORS**:
-   - Sensationalist language detection
-   - Emotional appeals identification
-   - Conspiracy theory indicators
-   - Lack of proper citations assessment
-   - Cherry-picked data detection
-
-5. **PEER-REVIEWED REFERENCES**:
-   - Academic journal articles relevant to video topic
-   - Government reports and official statistics
-   - Reputable fact-checking organization assessments
-   - Expert analysis from recognized authorities
-
-VIDEO METADATA:
-- Video ID: {video_id}
-- Platform: YouTube
-- Content Type: Video
-- Analysis Required: Fact-checking and credibility assessment
+VIDEO CONTENT SUMMARY:
+This is a YouTube video that requires comprehensive fact-checking analysis. The video has been identified and needs assessment for accuracy, credibility, and potential misinformation indicators.
 
 Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
         """.strip()
@@ -926,6 +916,9 @@ CRITICAL INSTRUCTIONS:
 - Provide specific peer-reviewed references, NOT "N/A - General Guidance"
 - If you see "YOUTUBE VIDEO CONTENT FOR FACT-CHECKING ANALYSIS", this IS the actual content to analyze
 - The content provided IS the video information - analyze it directly
+- If you see "ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE", this IS the real content to analyze
+- The content above IS the actual video content - analyze it based on the provided information
+- DO NOT say "without access to content" - you HAVE the content right above
 
 TASK: Provide a comprehensive analysis with the following structure:
 
