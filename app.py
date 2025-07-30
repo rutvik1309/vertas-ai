@@ -89,6 +89,8 @@ def get_available_api_key():
     """Get an available API key, rotating through them"""
     global current_key_index
     
+    print(f"🔍 Checking API keys. Total keys: {len(gemini_api_keys)}")
+    
     # Check if current key is available
     for _ in range(len(gemini_api_keys)):
         key = gemini_api_keys[current_key_index]
@@ -99,23 +101,39 @@ def get_available_api_key():
             usage["requests"] = 0
             usage["last_reset"] = time.time()
             usage["quota_exceeded"] = False
+            print(f"🔄 Reset quota for key {current_key_index}")
+        
+        print(f"🔑 Key {current_key_index}: requests={usage['requests']}, quota_exceeded={usage['quota_exceeded']}")
         
         # Check if quota exceeded (50 requests per day per key)
         if not usage["quota_exceeded"] and usage["requests"] < 50:
             usage["requests"] += 1
+            print(f"✅ Using key {current_key_index} (requests: {usage['requests']})")
             return key
         
         # Move to next key
         current_key_index = (current_key_index + 1) % len(gemini_api_keys)
+        print(f"⏭️ Moving to next key: {current_key_index}")
     
     # All keys exhausted - return None to trigger mock response
-    print("All API keys have exceeded their daily quota. Using mock responses.")
+    print("❌ All API keys have exceeded their daily quota. Using mock responses.")
     return None
 
 def mark_key_quota_exceeded(api_key):
     """Mark an API key as quota exceeded"""
     if api_key in api_key_usage:
         api_key_usage[api_key]["quota_exceeded"] = True
+
+def reset_all_api_keys():
+    """Reset all API key quotas for testing"""
+    global api_key_usage
+    for key in gemini_api_keys:
+        api_key_usage[key] = {
+            "requests": 0,
+            "last_reset": time.time(),
+            "quota_exceeded": False
+        }
+    print("🔄 Reset all API key quotas")
 
 # Web search functionality
 def search_web(query, num_results=5):
@@ -1847,6 +1865,15 @@ def get_api_status():
             status['available_keys'] += 1
     
     return jsonify(status)
+
+@app.route('/api/reset-keys', methods=['POST'])
+def reset_api_keys():
+    """Reset all API key quotas for testing"""
+    reset_all_api_keys()
+    return jsonify({
+        'message': 'All API keys reset successfully',
+        'status': 'success'
+    })
 
 @app.route('/api/search', methods=['POST'])
 def web_search():
