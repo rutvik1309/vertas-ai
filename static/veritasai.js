@@ -54,6 +54,30 @@ function setupThemeToggle() {
   }
 }
 
+// Learning indicator functions
+function showLearningIndicator() {
+  try {
+    const indicator = document.getElementById('learning-indicator');
+    if (indicator) {
+      indicator.style.display = 'block';
+      indicator.textContent = '🤖 AI is learning from this conversation...';
+    }
+  } catch (error) {
+    console.log('Learning indicator not available:', error.message);
+  }
+}
+
+function hideLearningIndicator() {
+  try {
+    const indicator = document.getElementById('learning-indicator');
+    if (indicator) {
+      indicator.style.display = 'none';
+    }
+  } catch (error) {
+    console.log('Learning indicator not available:', error.message);
+  }
+}
+
 // Load conversations from localStorage
 function loadConversations() {
   try {
