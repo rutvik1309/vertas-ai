@@ -706,9 +706,10 @@ def process_youtube_url(url):
     try:
         video_id = extract_youtube_id(url)
         if not video_id:
+            print(f"❌ Could not extract video ID from URL: {url}")
             return "Could not extract video ID from URL"
         
-        print(f"🔄 Attempting to fetch transcript for video ID: {video_id}")
+        print(f"🔄 Processing YouTube video ID: {video_id}")
         
         # Try to get transcript first
         transcript = get_transcript(video_id)
@@ -783,11 +784,11 @@ def process_youtube_url(url):
             if transcript:
                 return f"VIDEO CONTENT: {transcript}"
             else:
-                return f"VIDEO CONTENT: Title: {title} | Description: {description[:500]} | Transcript: Not available"
+                return f"VIDEO CONTENT: Transcript: Not available | Error: Could not extract video metadata"
                 
     except Exception as e:
         print(f"❌ Error processing YouTube URL: {e}")
-        return f"Error processing YouTube URL: {str(e)}"
+        return f"Error processing YouTube URL: {str(e)}. Please check if the URL is valid and the video is accessible."
 
 
 
@@ -2504,7 +2505,7 @@ if __name__ == "__main__":
                 # Ping our own health endpoint
                 import requests
                 requests.get("http://localhost:10000/health", timeout=5)
-                time.sleep(300)  # Ping every 5 minutes
+                time.sleep(100)  # Ping every 5 minutes
             except:
                 time.sleep(60)  # Wait 1 minute if ping fails
     
