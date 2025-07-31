@@ -242,12 +242,12 @@ else:
 
 # Try different models in order of preference
 try:
-    gemini_model = genai.GenerativeModel("models/gemini-1.5-pro")
-    print("Using gemini-1.5-pro model")
+    gemini_model = genai.GenerativeModel("models/gemini-1.5-flash")
+    print("Using gemini-1.5-flash model")
 except Exception as e:
     try:
-        gemini_model = genai.GenerativeModel("models/gemini-1.5-pro")
-        print("Using gemini-1.5-pro model")
+        gemini_model = genai.GenerativeModel("models/gemini-1.5-flash")
+        print("Using gemini-1.5-flash model")
     except Exception as e2:
         try:
             gemini_model = genai.GenerativeModel("models/gemini-2.0-flash-exp")
