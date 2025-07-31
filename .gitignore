@@ -1,3 +1,9 @@
+# Environment variables and API keys
+.env
+.env.local
+.env.production
+.env.staging
+
 # Python
 __pycache__/
 *.py[cod]
@@ -16,7 +22,6 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -28,45 +33,15 @@ env/
 ENV/
 env.bak/
 venv.bak/
-modelenv/
-fixenv/
-resaveenv/
-.venv/
 
-# Environment variables and secrets
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-*.env
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-veritas_ai.db
-
-# Model files (exclude all pickle files except the fixed one)
-*.pkl
-!final_pipeline_clean.pkl
-!final_pipeline_clean_fixed.pkl
-!final_pipeline_2025_v1.pkl
-
-
-# Logs
-*.log
-logs/
-log/
-
-# IDE and editor files
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS generated files
+# OS
 .DS_Store
 .DS_Store?
 ._*
@@ -75,76 +50,41 @@ log/
 ehthumbs.db
 Thumbs.db
 
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Model files (if too large)
+*.pkl
+*.joblib
+*.h5
+*.model
+
 # Temporary files
 *.tmp
 *.temp
-temp/
-tmp/
-
-# Uploaded files
-static/uploads/
-uploads/
-*.pdf
-*.doc
-*.docx
-*.txt
-*.jpg
-*.jpeg
-*.gif
-*.mp3
-*.mp4
-*.avi
-*.mov
-
-# Allow icon files
-!static/icon.png
-!static/favicon.ico
-!extension/icon.png
+~$*.pptx
+~$*.docx
+~$*.xlsx
 
 # Chrome extension build files
 extension/build/
 extension/dist/
-*.crx
-*.pem
 
-# SSL certificates
-ssl/
-*.pem
-*.key
-*.crt
-
-# Deployment files
-deployment/
-*.tar.gz
-*.zip
-
-# NLTK data (if downloaded)
-nltk_data/
-
-# ChromaDB data
-chroma_db/
-*.chroma
-
-# Model files
-models/
-*.model
-*.h5
-*.pth
+# Instance folder (Flask)
+instance/
 
 # Coverage reports
 htmlcov/
-.tox/
-.nox/
 .coverage
 .coverage.*
-.cache
-nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -154,9 +94,6 @@ cover/
 
 # pipenv
 Pipfile.lock
-
-# poetry
-poetry.lock
 
 # PEP 582
 __pypackages__/
@@ -186,110 +123,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# pytype static type analyzer
-.pytype/
+# Conversation memory (may contain sensitive data)
+conversation_memory.json
 
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-.idea/
-
-# VS Code
-.vscode/
-
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
-
-# Vim
-*.swp
-*.swo
-*~
-
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
-
-# macOS
-.AppleDouble
-.LSOverride
-Icon
-._*
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
-
-# Windows
-Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
-*.tmp
-*.temp
-Desktop.ini
-$RECYCLE.BIN/
-*.cab
-*.msi
-*.msix
-*.msm
-*.msp
-*.lnk
-
-# Linux
-*~
-.fuse_hidden*
-.directory
-.Trash-*
-.nfs*
-
-# Node.js (if using any frontend tools)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.pnpm-debug.log*
-
-# Local development
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Backup files
-*.bak
-*.backup
-*.old
-
-# Test files
-test_*.py
-*_test.py
-tests/
-
-# Documentation builds
-docs/_build/
-site/
-
-# API keys and sensitive data
+# API key files
 api_keys.txt
-secrets.json
-config.json
-credentials.json
-
-# Render specific
-.render-buildlogs/ 
+keys.txt 

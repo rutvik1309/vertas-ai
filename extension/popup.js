@@ -1,11 +1,5 @@
-// Extension version for cache busting
-const EXTENSION_VERSION = '1.4';
-
-// Backend URL configuration - update this for production
-const BACKEND_URL = 'https://veritas-ai.onrender.com'; // Production Render URL
-// const BACKEND_URL = 'http://127.0.0.1:5005'; // For local development
-
 // Global variables
+console.log('VeritasAI Extension JavaScript loaded - v2.0 - FINAL ERROR FIX');
 let conversations = [];
 let currentConversationId = null;
 let currentContext = null; // Store the latest prediction context
@@ -20,14 +14,19 @@ const chatForm = document.getElementById('chat-form');
 const newChatBtn = document.getElementById('new-chat-btn');
 const sendBtn = document.getElementById('send-btn');
 
+// Backend URL configuration
+const BACKEND_URL = 'http://127.0.0.1:10000';
+
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('🚀 Veritas AI Extension v' + EXTENSION_VERSION + ' loaded');
   loadConversations();
-  createNewConversation();
   setupEventListeners();
   setupThemeToggle();
-  updateMemoryIndicator();
+  
+  // Auto-save on page unload
+  window.addEventListener('beforeunload', function() {
+    saveConversations();
+  });
 });
 
 // Setup event listeners
@@ -38,24 +37,11 @@ function setupEventListeners() {
   userInput.addEventListener('keydown', handleKeyDown);
   
   // File upload functionality
-  const fileUploadBtn = document.getElementById('file-upload-btn');
-  const fileInput = document.getElementById('file-input');
+  document.getElementById('file-upload-btn').addEventListener('click', () => {
+    document.getElementById('file-input').click();
+  });
   
-  if (fileUploadBtn && fileInput) {
-    fileUploadBtn.addEventListener('click', () => {
-      console.log('📎 File upload button clicked');
-      fileInput.click();
-    });
-    
-    fileInput.addEventListener('change', (e) => {
-      console.log('📁 File input change event triggered');
-      handleFileSelect(e);
-    });
-    
-    console.log('✅ File upload event listeners set up successfully');
-  } else {
-    console.error('❌ File upload elements not found:', { fileUploadBtn, fileInput });
-  }
+  document.getElementById('file-input').addEventListener('change', handleFileSelect);
 }
 
 // Theme toggle functionality
@@ -70,42 +56,43 @@ function setupThemeToggle() {
   }
 }
 
-// Load conversations from storage
+// Load conversations from chrome.storage
 function loadConversations() {
   try {
-    // Clear old conversations to force fresh start with new web search functionality
-    console.log('🔄 Clearing old conversations for fresh web search functionality');
-    
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.remove(['conversations'], function() {
-        console.log('✅ Old conversations cleared from Chrome storage');
-        conversations = [];
+    chrome.storage.local.get(['veritas_conversations'], function(result) {
+      conversations = result.veritas_conversations || [];
+      
+      // Validate conversations structure
+      conversations = conversations.filter(conv => 
+        conv && conv.id && conv.messages && Array.isArray(conv.messages)
+      );
+      
+      console.log(`✅ Loaded ${conversations.length} conversations from chrome.storage`);
+      
+      // Create a new conversation if none exists
+      if (conversations.length === 0) {
+        createNewConversation();
+      } else {
+        // Set the first conversation as current
+        currentConversationId = conversations[0].id;
         renderConversationsList();
-      });
-    } else {
-      console.warn('Chrome storage API not available, using localStorage fallback');
-      localStorage.removeItem('veritas_conversations');
-      conversations = [];
-      renderConversationsList();
-    }
+        renderChatMessages();
+      }
+    });
   } catch (error) {
-    console.error('Error loading conversations:', error);
+    console.error('❌ Error loading conversations:', error);
     conversations = [];
-    renderConversationsList();
+    createNewConversation();
   }
 }
 
-// Save conversations to storage
+// Save conversations to chrome.storage
 function saveConversations() {
   try {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ conversations: conversations });
-  } else {
-      console.warn('Chrome storage API not available, using localStorage fallback');
-      localStorage.setItem('veritas_conversations', JSON.stringify(conversations));
-    }
+    chrome.storage.local.set({ veritas_conversations: conversations });
+    console.log(`✅ Saved ${conversations.length} conversations to chrome.storage`);
   } catch (error) {
-    console.error('Error saving conversations:', error);
+    console.error('❌ Error saving conversations:', error);
   }
 }
 
@@ -121,177 +108,151 @@ function createNewConversation() {
   
   conversations.unshift(newConversation);
   currentConversationId = conversationId;
+  
+  // Clear any existing context for new conversation
   currentContext = null;
   
   saveConversations();
   renderConversationsList();
   renderChatMessages();
-  userInput.focus();
+  
+  console.log('✅ Created new conversation:', conversationId);
 }
 
-// Switch to a conversation
+// Switch to a different conversation
 function switchConversation(conversationId) {
   currentConversationId = conversationId;
-  
-  // Clear current context first to prevent old context from being used
-  currentContext = null;
-  
   const conversation = conversations.find(c => c.id === conversationId);
   if (conversation) {
-    // First check if there's stored context in the conversation
-    if (conversation.context) {
-      currentContext = conversation.context;
-    } else {
-      // Extract the latest prediction context from messages
-      const predictionMessage = conversation.messages.find(m => m.type === 'prediction');
-      if (predictionMessage) {
-        currentContext = {
-          article: predictionMessage.article,
-          reasoning: predictionMessage.reasoning,
-          references: predictionMessage.references
-        };
-      } else {
-        // Clear context if no prediction found
-        currentContext = null;
-      }
-    }
+    currentContext = conversation.context || null;
   }
   
-  console.log('🔄 Switched conversation:', {
-    conversationId,
-    hasContext: !!currentContext,
-    contextArticle: currentContext ? currentContext.article.substring(0, 100) + '...' : 'None'
-  });
-  
-  renderConversationsList();
   renderChatMessages();
-  userInput.focus();
+  console.log('✅ Switched to conversation:', conversationId);
 }
 
-// Refresh a conversation
+// Refresh conversation (reload from storage)
 function refreshConversation(conversationId, event) {
-  event.stopPropagation();
+  if (event) {
+    event.stopPropagation();
+  }
   
-  const conversation = conversations.find(c => c.id === conversationId);
-  if (!conversation) return;
+  loadConversations();
+  console.log('✅ Refreshed conversation:', conversationId);
+}
+
+// Delete conversation
+function deleteConversation(conversationId, event) {
+  if (event) {
+    event.stopPropagation();
+  }
   
-  // Show loading indicator
-  const refreshBtn = event.target;
-  const originalText = refreshBtn.innerHTML;
-  refreshBtn.innerHTML = '⏳';
-  refreshBtn.disabled = true;
+  conversations = conversations.filter(c => c.id !== conversationId);
+  if (currentConversationId === conversationId) {
+    createNewConversation();
+  }
   
-  // Clear messages and reload the conversation
-  conversation.messages = [];
-  conversation.context = null;
-  
-  // Save and re-render
   saveConversations();
   renderConversationsList();
-  
-  // If this is the current conversation, re-render messages
-  if (currentConversationId === conversationId) {
-    renderChatMessages();
-  }
-  
-  // Reset button after a short delay
-  setTimeout(() => {
-    refreshBtn.innerHTML = originalText;
-    refreshBtn.disabled = false;
-  }, 1000);
-}
-
-// Delete a conversation
-function deleteConversation(conversationId, event) {
-  event.stopPropagation();
-  if (confirm('Are you sure you want to delete this conversation?')) {
-    conversations = conversations.filter(c => c.id !== conversationId);
-    if (currentConversationId === conversationId) {
-      createNewConversation();
-    }
-    saveConversations();
-    renderConversationsList();
-  }
+  console.log('✅ Deleted conversation:', conversationId);
 }
 
 // Render conversations list
 function renderConversationsList() {
+  if (!conversationsList) return;
+  
   conversationsList.innerHTML = '';
   
   conversations.forEach(conversation => {
-    const conversationItem = document.createElement('div');
-    conversationItem.className = `conversation-item ${conversation.id === currentConversationId ? 'active' : ''}`;
-    conversationItem.onclick = () => switchConversation(conversation.id);
+    const conversationDiv = document.createElement('div');
+    conversationDiv.className = `conversation-item ${conversation.id === currentConversationId ? 'active' : ''}`;
+    conversationDiv.onclick = () => switchConversation(conversation.id);
     
     const title = document.createElement('div');
     title.className = 'conversation-title';
-    title.textContent = conversation.title;
+    title.textContent = conversation.title || 'New Chat';
     
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'conversation-controls';
+    const controls = document.createElement('div');
+    controls.className = 'conversation-controls';
     
     const refreshBtn = document.createElement('button');
-    refreshBtn.className = 'refresh-conversation';
+    refreshBtn.className = 'refresh-btn';
     refreshBtn.innerHTML = '🔄';
-    refreshBtn.title = 'Refresh this conversation';
     refreshBtn.onclick = (e) => refreshConversation(conversation.id, e);
     
     const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-conversation';
-    deleteBtn.innerHTML = '×';
-    deleteBtn.title = 'Delete this conversation';
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.innerHTML = '🗑️';
     deleteBtn.onclick = (e) => deleteConversation(conversation.id, e);
     
-    controlsDiv.appendChild(refreshBtn);
-    controlsDiv.appendChild(deleteBtn);
+    controls.appendChild(refreshBtn);
+    controls.appendChild(deleteBtn);
     
-    conversationItem.appendChild(title);
-    conversationItem.appendChild(controlsDiv);
-    conversationsList.appendChild(conversationItem);
+    conversationDiv.appendChild(title);
+    conversationDiv.appendChild(controls);
+    conversationsList.appendChild(conversationDiv);
   });
 }
 
 // Render chat messages
 function renderChatMessages() {
-  console.log('Rendering chat messages');
-  const conversation = conversations.find(c => c.id === currentConversationId);
-  if (!conversation) {
-    console.error('No conversation found for rendering');
-    return;
+  try {
+    console.log('🔍 Extension renderChatMessages called');
+    const conversation = conversations.find(c => c.id === currentConversationId);
+    if (!conversation) {
+      console.error('❌ Extension no conversation found for ID:', currentConversationId);
+      return;
+    }
+    
+    console.log('✅ Extension found conversation with', conversation.messages.length, 'messages');
+    console.log('🔍 Extension clearing chatMessages.innerHTML');
+    chatMessages.innerHTML = '';
+    
+    if (conversation.messages.length === 0) {
+      // Show welcome message
+      console.log('📝 Extension showing welcome message');
+      const welcomeMessage = createMessage('ai', 'Hello! I\'m Veritas AI. You can:\n\n• Paste a news article and I\'ll analyze its authenticity\n• Ask me questions about news and fact-checking\n• Get detailed reasoning and references for any news story\n\nWhat would you like to know?');
+      chatMessages.appendChild(welcomeMessage);
+      console.log('✅ Extension welcome message added');
+    } else {
+      console.log('📝 Extension rendering', conversation.messages.length, 'messages');
+      conversation.messages.forEach((message, index) => {
+        console.log(`📝 Extension rendering message ${index + 1}:`, message.type, message.content.substring(0, 50));
+        const messageElement = createMessageElement(message);
+        console.log('✅ Extension message element created:', messageElement);
+        chatMessages.appendChild(messageElement);
+        console.log('✅ Extension message element appended to chatMessages');
+      });
+    }
+    
+    console.log('🔍 Extension setting scrollTop to scrollHeight');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    console.log('✅ Extension renderChatMessages completed');
+  } catch (error) {
+    console.error('❌ Extension error in renderChatMessages:', error);
   }
-  
-  console.log('Rendering', conversation.messages.length, 'messages');
-  chatMessages.innerHTML = '';
-  
-  if (conversation.messages.length === 0) {
-    // Show welcome message
-    const welcomeMessage = createMessage('ai', 'Hello! I\'m Veritas AI. You can:\n\n• Paste a news article and I\'ll analyze its authenticity\n• Ask me questions about news and fact-checking\n• Get detailed reasoning and references for any news story\n\nWhat would you like to know?');
-    chatMessages.appendChild(welcomeMessage);
-  } else {
-    conversation.messages.forEach(message => {
-      const messageElement = createMessageElement(message);
-      chatMessages.appendChild(messageElement);
-    });
-  }
-  
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-  console.log('Chat messages rendered successfully');
 }
 
 // Create a message element
 function createMessageElement(message) {
+  console.log('🔍 Extension createMessageElement called with:', message.type, message.content.substring(0, 50));
+  
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${message.type === 'user' ? 'user' : 'ai'}`;
+  console.log('✅ Extension message div created with class:', messageDiv.className);
   
   const avatar = document.createElement('div');
   avatar.className = 'message-avatar';
   avatar.textContent = message.type === 'user' ? '🧑‍💼' : '🤖';
+  console.log('✅ Extension avatar created:', avatar.textContent);
   
   const content = document.createElement('div');
   content.className = 'message-content';
+  console.log('✅ Extension content div created');
   
   if (message.type === 'prediction') {
     // Render prediction result
+    console.log('📝 Extension rendering prediction message');
     let originalNewsHtml = '';
     if (message.originalNews) {
       originalNewsHtml = `<h5>📰 Original News:</h5><p>${message.originalNews}</p>`;
@@ -314,13 +275,18 @@ function createMessageElement(message) {
         ${message.references ? `<h5>🔗 References:</h5>${message.references}` : ''}
       </div>
     `;
+    console.log('✅ Extension prediction HTML set:', content.innerHTML.substring(0, 100));
   } else {
     // Render regular message
+    console.log('📝 Extension rendering regular message');
     content.innerHTML = marked.parse(message.content);
+    console.log('✅ Extension regular message HTML set:', content.innerHTML.substring(0, 100));
   }
   
   messageDiv.appendChild(avatar);
   messageDiv.appendChild(content);
+  console.log('✅ Extension avatar and content appended to messageDiv');
+  console.log('✅ Extension final messageDiv:', messageDiv);
   return messageDiv;
 }
 
@@ -352,22 +318,22 @@ async function handleChatSubmit(e) {
   sendBtn.disabled = true;
   
   // Check if input looks like a news article (long text or URL)
-  if (input.length > 200 || input.includes('http')) {
-    // Treat as prediction request
+  if (input.length > 100 || input.includes('http')) {
+    console.log('Processing as news article');
     await handlePredictionRequest(input);
   } else {
-    // Treat as chat question
+    console.log('Processing as chat question');
     await handleChatQuestion(input);
   }
   
-  return false; // Prevent form submission
+  return false;
 }
 
 // Handle prediction request
 async function handlePredictionRequest(input) {
   console.log('handlePredictionRequest called with input:', input);
   try {
-  const formData = new FormData();
+    const formData = new FormData();
     
     if (input.includes('http')) {
       formData.append('article_url', input);
@@ -378,8 +344,10 @@ async function handlePredictionRequest(input) {
     const response = await fetch(BACKEND_URL + '/', {
       method: 'POST',
       body: formData,
-      credentials: 'include',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      headers: { 
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json, text/plain, */*'
+      }
     });
     
     if (!response.ok) {
@@ -410,58 +378,89 @@ async function handlePredictionRequest(input) {
     }
     
     const result = await response.text();
+    console.log('🔍 Extension raw response from server:', result);
+    console.log('🔍 Extension response length:', result.length);
+    console.log('🔍 Extension response contains <b>🎯 FINAL VERDICT:</b>:', result.includes('<b>🎯 FINAL VERDICT:</b>'));
+    console.log('🔍 Extension response contains <b>Prediction:</b>:', result.includes('<b>Prediction:</b>'));
+    console.log('🔍 Extension response contains <b>Analysis:</b>:', result.includes('<b>Analysis:</b>'));
     
-    // Parse the result to extract components
-    const predictionMatch = result.match(/<b>Prediction:<\/b> ([^<]+)/);
-    const confidenceMatch = result.match(/<b>Confidence:<\/b> ([^<]+)/);
-    const reasoningMatch = result.match(/<b>Reasoning:<\/b> (.+?)(?=<br><b>|$)/s);
-    const originalNewsMatch = result.match(/<b>Original News:<\/b><p[^>]*>([^<]+)<\/p>/);
-    const redFlagsMatch = result.match(/<b>Red Flags:<\/b><ul[^>]*>(.*?)<\/ul>/s);
-    
-    const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
-    const confidence = confidenceMatch ? confidenceMatch[1] : 'Unknown';
-    const reasoning = reasoningMatch ? reasoningMatch[1] : 'No reasoning available';
-    const originalNews = originalNewsMatch ? originalNewsMatch[1] : '';
-    const redFlags = redFlagsMatch ? redFlagsMatch[1].replace(/<[^>]+>/g, '').trim() : '';
-    
-          // Store context for future chat - this replaces any previous context
+    // Check if this is a simple HTML response (from AJAX) or full page
+    if (result.includes('<b>🎯 FINAL VERDICT:</b>') || result.includes('<b>Prediction:</b>')) {
+      console.log('✅ Extension response format recognized as AJAX response');
+      
+      // Simple HTML response from AJAX - fix regex patterns
+      const predictionMatch = result.match(/<b>(?:🎯 FINAL VERDICT|Prediction):<\/b>\s*([^<]+)/);
+      const confidenceMatch = result.match(/<b>Confidence:<\/b>\s*([^<]+)/);
+      const reasoningMatch = result.match(/<b>Analysis:<\/b>\s*(.+?)(?=<br><b>|$)/s);
+      const originalNewsMatch = result.match(/<b>Original News:<\/b><p[^>]*>([^<]+)<\/p>/);
+      const redFlagsMatch = result.match(/<b>Red Flags:<\/b><ul[^>]*>(.*?)<\/ul>/s);
+      
+      console.log('🔍 Extension prediction match:', predictionMatch);
+      console.log('🔍 Extension confidence match:', confidenceMatch);
+      console.log('🔍 Extension reasoning match:', reasoningMatch);
+      
+      let prediction = predictionMatch ? predictionMatch[1].trim() : 'Unknown';
+      const confidence = confidenceMatch ? confidenceMatch[1].trim() : 'Unknown';
+      const reasoning = reasoningMatch ? reasoningMatch[1].trim() : 'No reasoning available';
+      const originalNews = originalNewsMatch ? originalNewsMatch[1] : '';
+      const redFlags = redFlagsMatch ? redFlagsMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+      
+      console.log('✅ Extension extracted prediction:', prediction);
+      console.log('✅ Extension extracted confidence:', confidence);
+      console.log('✅ Extension extracted reasoning length:', reasoning.length);
+      
+      // Fallback if regex parsing failed
+      if (prediction === 'Unknown' && result.includes('FINAL VERDICT')) {
+        console.log('⚠️ Extension regex parsing failed, trying fallback extraction');
+        const fallbackMatch = result.match(/FINAL VERDICT[^:]*:\s*([^\n<]+)/i);
+        if (fallbackMatch) {
+          const fallbackPrediction = fallbackMatch[1].trim();
+          console.log('✅ Extension fallback prediction extracted:', fallbackPrediction);
+          prediction = fallbackPrediction;
+        }
+      }
+      
+      // Clear any old context and store new context for future chat
       currentContext = {
         article: input,
         reasoning: reasoning,
-        references: extractReferences(result),
-        originalNews: originalNews,
-        redFlags: redFlags
+        references: extractReferences(result)
       };
       
-      console.log('🔄 Updated currentContext with new prediction:', {
+      // Add prediction message
+      addMessage('prediction', '', {
         prediction,
-        article: input.substring(0, 100) + '...',
-        hasReferences: currentContext.references.length > 0
+        confidence,
+        reasoning,
+        article: input,
+        originalNews,
+        redFlags
       });
-    
-    // Add prediction message
-    addMessage('prediction', '', {
-      prediction,
-      confidence,
-      reasoning,
-      article: input,
-      references: currentContext.references,
-      originalNews: originalNews,
-      redFlags: redFlags
-    });
-    
-    // Update the conversation's context for future reference
-    const conversation = conversations.find(c => c.id === currentConversationId);
-    if (conversation) {
-      conversation.context = currentContext;
-      saveConversations();
+      
+      // Debug: Show alert to confirm processing
+      console.log('🎯 EXTENSION PROCESSING COMPLETE - Prediction:', prediction, 'Confidence:', confidence);
+      
+      // Update conversation title
+      updateConversationTitle(input.substring(0, 50) + (input.length > 50 ? '...' : ''));
+      
+    } else {
+      console.log('⚠️ Extension response format not recognized, displaying raw response');
+      addMessage('ai', `**Analysis Result:**\n\n${result}`);
+      
+      // Try to extract any useful information
+      if (result.includes('FINAL VERDICT') || result.includes('Real') || result.includes('Fake')) {
+        const verdictMatch = result.match(/(?:FINAL VERDICT|Prediction):\s*([^\n]+)/i);
+        if (verdictMatch) {
+          updateConversationTitle(`Analysis: ${verdictMatch[1].trim()}`);
+        }
+      }
     }
     
-    // Update conversation title
-    updateConversationTitle(input.substring(0, 50) + '...');
-    
   } catch (error) {
-    addMessage('ai', `Error: ${error.message}`);
+    console.log('Extension prediction error caught:', error.message);
+    addMessage('ai', `❌ **Error:** ${error.message}`);
+    // Also show an alert for immediate visibility
+    alert(`Error: ${error.message}`);
   }
 }
 
@@ -482,135 +481,35 @@ async function handleFilePrediction() {
         if (selectedFileContent) {
           resolve();
         } else if (attempts >= maxAttempts) {
-          console.warn('File content loading timeout, proceeding without content');
-          resolve();
+          reject(new Error('File content loading timeout'));
         } else {
           setTimeout(checkContent, 100);
         }
       };
+      
       checkContent();
     });
   }
   
-  // If still no content, try to read it directly
-  if (!selectedFileContent && selectedFile) {
-    console.log('Attempting to read file content directly...');
-    try {
-      const reader = new FileReader();
-      selectedFileContent = await new Promise((resolve, reject) => {
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = reject;
-        reader.readAsText(selectedFile);
-      });
-      console.log('File content read directly, length:', selectedFileContent.length);
-    } catch (error) {
-      console.error('Failed to read file content directly:', error);
-    }
-  }
+  console.log('Processing file:', selectedFile.name);
   
-  try {
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    
-    const response = await fetch(BACKEND_URL + '/', {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    });
-    
-    if (!response.ok) {
-      console.log('Extension file prediction response not ok, status:', response.status);
-      // Try to parse JSON error response first
-      try {
-        const responseClone = response.clone();
-        const errorData = await responseClone.json();
-        console.log('Extension file prediction parsed error data:', errorData);
-        // Display the detailed error message directly instead of throwing
-        addMessage('ai', `❌ **Error:** ${errorData.error || `HTTP error! status: ${response.status}`}`);
-        return; // Exit early, don't continue processing
-      } catch (jsonError) {
-        console.log('Extension file prediction JSON parsing failed:', jsonError);
-        // If JSON parsing fails, try to get text
-        try {
-          const textResponse = response.clone();
-          const errorText = await textResponse.text();
-          console.log('Extension file prediction error text:', errorText);
-          addMessage('ai', `❌ **Error:** ${errorText}`);
-          return; // Exit early
-        } catch (textError) {
-          console.log('Extension file prediction text parsing also failed:', textError);
-          addMessage('ai', `❌ **Error:** HTTP error! status: ${response.status}`);
-          return; // Exit early
-        }
-      }
-    }
-    
-    const result = await response.text();
-    
-    // Parse the result similar to handlePredictionRequest
-    if (result.includes('<b>Prediction:</b>')) {
-      const predictionMatch = result.match(/<b>Prediction:<\/b> ([^<]+)/);
-      const confidenceMatch = result.match(/<b>Confidence:<\/b> ([^<]+)/);
-      const reasoningMatch = result.match(/<b>Reasoning:<\/b> (.+?)(?=<br><b>|$)/s);
-      const originalNewsMatch = result.match(/<b>Original News:<\/b><p[^>]*>([^<]+)<\/p>/);
-      const redFlagsMatch = result.match(/<b>Red Flags:<\/b><ul[^>]*>(.*?)<\/ul>/s);
-      
-      const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
-      const confidence = confidenceMatch ? confidenceMatch[1] : 'Unknown';
-      const reasoning = reasoningMatch ? reasoningMatch[1] : 'No reasoning available';
-      const originalNews = originalNewsMatch ? originalNewsMatch[1] : '';
-      const redFlags = redFlagsMatch ? redFlagsMatch[1].replace(/<[^>]+>/g, '').trim() : '';
-      
-      // Store context for future chat
-      currentContext = {
-        article: selectedFileContent || `File: ${selectedFile.name}`,
-        reasoning: reasoning,
-        references: extractReferences(result),
-        originalNews: originalNews,
-        redFlags: redFlags
-      };
-      
-      console.log('Context stored for file prediction:', {
-        hasFileContent: !!selectedFileContent,
-        contentLength: selectedFileContent ? selectedFileContent.length : 0,
-        articlePreview: currentContext.article.substring(0, 200) + '...',
-        articleLength: currentContext.article.length
-      });
-      
-      // Also log the actual content being stored
-      if (selectedFileContent) {
-        console.log('Full file content being stored:', selectedFileContent);
-      }
-      
-      // Add prediction message
-      addMessage('prediction', '', {
-        prediction,
-        confidence,
-        reasoning,
-        article: selectedFileContent || `File: ${selectedFile.name}`,
-        references: currentContext.references,
-        originalNews: originalNews,
-        redFlags: redFlags
-      });
-      
-      // Update the conversation's context for future reference
-      const conversation = conversations.find(c => c.id === currentConversationId);
-      if (conversation) {
-        conversation.context = currentContext;
-        saveConversations();
-      }
-      
-      // Update conversation title
-      updateConversationTitle(`File: ${selectedFile.name}`);
-      
-      // Clear file
-      removeFile();
-    }
-    
-  } catch (error) {
-    addMessage('ai', `Error: ${error.message}`);
-  }
+  // Add user message showing file info
+  addMessage('user', `Uploaded file: ${selectedFile.name}`);
+  
+  // Process the file content
+  await handlePredictionRequest(selectedFileContent);
+  
+  // Store the filename before clearing
+  const fileName = selectedFile.name;
+  
+  // Clear the file selection
+  selectedFile = null;
+  selectedFileContent = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('file-preview').classList.remove('show');
+  
+  // Update conversation title
+  updateConversationTitle(fileName + ' - Analysis');
 }
 
 // Handle chat question
@@ -618,9 +517,6 @@ async function handleChatQuestion(question) {
   try {
     const conversation = conversations.find(c => c.id === currentConversationId);
     if (!conversation) return;
-    
-    // Show learning indicator
-    showLearningIndicator();
     
     // Build chat history
     const historyText = conversation.messages
@@ -669,7 +565,6 @@ async function handleChatQuestion(question) {
     const response = await fetch(BACKEND_URL + '/ask', {
       method: 'POST',
       body: formData,
-      credentials: 'include',
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
     
@@ -681,35 +576,56 @@ async function handleChatQuestion(question) {
       addMessage('ai', data.answer);
     }
     
-    // Hide learning indicator and update memory stats
-    hideLearningIndicator();
-    
   } catch (error) {
     addMessage('ai', `Error: ${error.message}`);
-    hideLearningIndicator();
   }
 }
 
 // Add a message to the current conversation
 function addMessage(type, content, extraData = {}) {
-  console.log('Adding message:', { type, content, extraData });
-  const conversation = conversations.find(c => c.id === currentConversationId);
-  if (!conversation) {
-    console.error('No conversation found for currentConversationId:', currentConversationId);
-    return;
+  try {
+    console.log('🔍 Extension addMessage called with:', { type, content: content.substring(0, 100), extraData });
+    
+    // Ensure we have a current conversation
+    if (!currentConversationId) {
+      console.log('⚠️ No current conversation ID, creating new conversation');
+      createNewConversation();
+    }
+    
+    const conversation = conversations.find(c => c.id === currentConversationId);
+    if (!conversation) {
+      console.error('❌ Extension no conversation found for ID:', currentConversationId);
+      console.log('🔄 Creating new conversation as fallback');
+      createNewConversation();
+      return;
+    }
+    
+    const message = {
+      type,
+      content,
+      timestamp: new Date().toISOString(),
+      ...extraData
+    };
+    
+    console.log('✅ Extension adding message to conversation:', message);
+    conversation.messages.push(message);
+    console.log('✅ Extension message added to conversation, total messages:', conversation.messages.length);
+    
+    saveConversations();
+    console.log('✅ Extension conversations saved');
+    renderChatMessages();
+    console.log('✅ Extension renderChatMessages called');
+    
+    // Force scroll to bottom
+    setTimeout(() => {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      console.log('✅ Extension scrolled to bottom');
+    }, 100);
+    
+    console.log('✅ Extension message added successfully');
+  } catch (error) {
+    console.error('❌ Extension error in addMessage:', error);
   }
-  
-  const message = {
-    type,
-    content,
-    timestamp: new Date().toISOString(),
-    ...extraData
-  };
-  
-  conversation.messages.push(message);
-  saveConversations();
-  renderChatMessages();
-  console.log('Message added successfully');
 }
 
 // Update conversation title
@@ -790,59 +706,6 @@ function removeFile() {
   selectedFileContent = null;
   document.getElementById('file-input').value = '';
   document.getElementById('file-preview').classList.remove('show');
-}
-
-
-
-// Memory indicator functions
-async function updateMemoryIndicator() {
-  try {
-    const response = await fetch(BACKEND_URL + '/memory/stats');
-    const stats = await response.json();
-    
-    const indicator = document.getElementById('memory-indicator');
-    if (!indicator) {
-      console.warn('Memory indicator element not found');
-      return;
-    }
-    
-    const text = indicator.querySelector('.memory-text');
-    if (!text) {
-      console.warn('Memory text element not found');
-      return;
-    }
-    
-    if (stats.total_conversations > 0) {
-      text.textContent = `Learned from ${stats.total_conversations} conversations`;
-      indicator.style.animation = 'none';
-    } else {
-      text.textContent = 'Ready to learn...';
-      indicator.style.animation = 'pulse 2s infinite';
-    }
-  } catch (error) {
-    console.log('Could not fetch memory stats:', error);
-    // Set default text if fetch fails
-    const indicator = document.getElementById('memory-indicator');
-    if (indicator) {
-      const text = indicator.querySelector('.memory-text');
-      if (text) {
-        text.textContent = 'Ready to learn...';
-      }
-    }
-  }
-}
-
-function showLearningIndicator() {
-  const indicator = document.getElementById('memory-indicator');
-  const text = indicator.querySelector('.memory-text');
-  text.textContent = 'Learning...';
-  indicator.style.animation = 'pulse 1s infinite';
-}
-
-function hideLearningIndicator() {
-  setTimeout(() => {
-    updateMemoryIndicator();
-  }, 1000);
 }
 
 // Handle key down (Enter to send, Shift+Enter for new line)

@@ -1,21 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Veritas AI - News Fact Checker",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "description": "AI-powered news fact-checking and analysis tool with web search capabilities",
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
-            "host_permissions": [
-            "http://127.0.0.1:5005/*",
-            "http://localhost:5005/*",
-            "https://*.onrender.com/*",
-            "https://veritas-ai.onrender.com/*"
-          ],
+  "host_permissions": [
+    "http://127.0.0.1:10000/*",
+    "http://localhost:10000/*",
+    "https://*.onrender.com/*",
+    "https://veritas-ai.onrender.com/*"
+  ],
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Veritas AI",
     "default_icon": {
       "16": "icon.png",
@@ -23,6 +23,9 @@
       "48": "icon.png",
       "128": "icon.png"
     }
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "icons": {
     "16": "icon.png",
@@ -35,7 +38,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icon.png"],
+      "resources": ["icon.png", "popup.html", "popup.css", "popup.js"],
       "matches": ["<all_urls>"]
     }
   ]

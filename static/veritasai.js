@@ -20,7 +20,11 @@ document.addEventListener('DOMContentLoaded', function() {
   createNewConversation();
   setupEventListeners();
   setupThemeToggle();
-  updateMemoryIndicator();
+  
+  // Auto-save on page unload
+  window.addEventListener('beforeunload', function() {
+    saveConversations();
+  });
 });
 
 // Setup event listeners
@@ -52,14 +56,32 @@ function setupThemeToggle() {
 
 // Load conversations from localStorage
 function loadConversations() {
-  const stored = localStorage.getItem('veritas_conversations');
-  conversations = stored ? JSON.parse(stored) : [];
-  renderConversationsList();
+  try {
+    const stored = localStorage.getItem('veritas_conversations');
+    conversations = stored ? JSON.parse(stored) : [];
+    
+    // Validate conversations structure
+    conversations = conversations.filter(conv => 
+      conv && conv.id && conv.messages && Array.isArray(conv.messages)
+    );
+    
+    console.log(`✅ Loaded ${conversations.length} conversations from localStorage`);
+    renderConversationsList();
+  } catch (error) {
+    console.error('❌ Error loading conversations:', error);
+    conversations = [];
+    renderConversationsList();
+  }
 }
 
 // Save conversations to localStorage
 function saveConversations() {
-  localStorage.setItem('veritas_conversations', JSON.stringify(conversations));
+  try {
+    localStorage.setItem('veritas_conversations', JSON.stringify(conversations));
+    console.log(`✅ Saved ${conversations.length} conversations to localStorage`);
+  } catch (error) {
+    console.error('❌ Error saving conversations:', error);
+  }
 }
 
 // Create a new conversation
@@ -194,39 +216,63 @@ function renderConversationsList() {
 
 // Render chat messages
 function renderChatMessages() {
-  const conversation = conversations.find(c => c.id === currentConversationId);
-  if (!conversation) return;
-  
-  chatMessages.innerHTML = '';
-  
-  if (conversation.messages.length === 0) {
-    // Show welcome message
-    const welcomeMessage = createMessage('ai', 'Hello! I\'m Veritas AI. You can:\n\n• Paste a news article and I\'ll analyze its authenticity\n• Ask me questions about news and fact-checking\n• Get detailed reasoning and references for any news story\n\nWhat would you like to know?');
-    chatMessages.appendChild(welcomeMessage);
-  } else {
-    conversation.messages.forEach(message => {
-      const messageElement = createMessageElement(message);
-      chatMessages.appendChild(messageElement);
-    });
+  try {
+    console.log('🔍 renderChatMessages called');
+    const conversation = conversations.find(c => c.id === currentConversationId);
+    if (!conversation) {
+      console.error('❌ No conversation found for ID:', currentConversationId);
+      return;
+    }
+    
+    console.log('✅ Found conversation with', conversation.messages.length, 'messages');
+    console.log('🔍 Clearing chatMessages.innerHTML');
+    chatMessages.innerHTML = '';
+    
+    if (conversation.messages.length === 0) {
+      // Show welcome message
+      console.log('📝 Showing welcome message');
+      const welcomeMessage = createMessage('ai', 'Hello! I\'m Veritas AI. You can:\n\n• Paste a news article and I\'ll analyze its authenticity\n• Ask me questions about news and fact-checking\n• Get detailed reasoning and references for any news story\n\nWhat would you like to know?');
+      chatMessages.appendChild(welcomeMessage);
+      console.log('✅ Welcome message added');
+    } else {
+      console.log('📝 Rendering', conversation.messages.length, 'messages');
+      conversation.messages.forEach((message, index) => {
+        console.log(`📝 Rendering message ${index + 1}:`, message.type, message.content.substring(0, 50));
+        const messageElement = createMessageElement(message);
+        console.log('✅ Message element created:', messageElement);
+        chatMessages.appendChild(messageElement);
+        console.log('✅ Message element appended to chatMessages');
+      });
+    }
+    
+    console.log('🔍 Setting scrollTop to scrollHeight');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    console.log('✅ renderChatMessages completed');
+  } catch (error) {
+    console.error('❌ Error in renderChatMessages:', error);
   }
-  
-  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 // Create a message element
 function createMessageElement(message) {
+  console.log('🔍 createMessageElement called with:', message.type, message.content.substring(0, 50));
+  
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${message.type === 'user' ? 'user' : 'ai'}`;
+  console.log('✅ Message div created with class:', messageDiv.className);
   
   const avatar = document.createElement('div');
   avatar.className = 'message-avatar';
   avatar.textContent = message.type === 'user' ? '🧑‍💼' : '🤖';
+  console.log('✅ Avatar created:', avatar.textContent);
   
   const content = document.createElement('div');
   content.className = 'message-content';
+  console.log('✅ Content div created');
   
   if (message.type === 'prediction') {
     // Render prediction result
+    console.log('📝 Rendering prediction message');
     let originalNewsHtml = '';
     if (message.originalNews) {
       originalNewsHtml = `<h5>📰 Original News:</h5><p>${message.originalNews}</p>`;
@@ -249,13 +295,18 @@ function createMessageElement(message) {
         ${message.references ? `<h5>🔗 References:</h5>${message.references}` : ''}
       </div>
     `;
+    console.log('✅ Prediction HTML set:', content.innerHTML.substring(0, 100));
   } else {
     // Render regular message
+    console.log('📝 Rendering regular message');
     content.innerHTML = marked.parse(message.content);
+    console.log('✅ Regular message HTML set:', content.innerHTML.substring(0, 100));
   }
   
   messageDiv.appendChild(avatar);
   messageDiv.appendChild(content);
+  console.log('✅ Avatar and content appended to messageDiv');
+  console.log('✅ Final messageDiv:', messageDiv);
   return messageDiv;
 }
 
@@ -344,21 +395,47 @@ async function handlePredictionRequest(input) {
     }
     
     const result = await response.text();
+    console.log('🔍 Raw response from server:', result);
+    console.log('🔍 Response length:', result.length);
+    console.log('🔍 Response contains <b>🎯 FINAL VERDICT:</b>:', result.includes('<b>🎯 FINAL VERDICT:</b>'));
+    console.log('🔍 Response contains <b>Prediction:</b>:', result.includes('<b>Prediction:</b>'));
+    console.log('🔍 Response contains <b>Analysis:</b>:', result.includes('<b>Analysis:</b>'));
     
     // Check if this is a simple HTML response (from AJAX) or full page
-    if (result.includes('<b>Prediction:</b>')) {
-      // Simple HTML response from AJAX
-      const predictionMatch = result.match(/<b>Prediction:<\/b> ([^<]+)/);
-      const confidenceMatch = result.match(/<b>Confidence:<\/b> ([^<]+)/);
-      const reasoningMatch = result.match(/<b>Reasoning:<\/b> (.+?)(?=<br><b>|$)/s);
+    if (result.includes('<b>🎯 FINAL VERDICT:</b>') || result.includes('<b>Prediction:</b>')) {
+      console.log('✅ Response format recognized as AJAX response');
+      
+      // Simple HTML response from AJAX - fix regex patterns
+      const predictionMatch = result.match(/<b>(?:🎯 FINAL VERDICT|Prediction):<\/b>\s*([^<]+)/);
+      const confidenceMatch = result.match(/<b>Confidence:<\/b>\s*([^<]+)/);
+      const reasoningMatch = result.match(/<b>Analysis:<\/b>\s*(.+?)(?=<br><b>|$)/s);
       const originalNewsMatch = result.match(/<b>Original News:<\/b><p[^>]*>([^<]+)<\/p>/);
       const redFlagsMatch = result.match(/<b>Red Flags:<\/b><ul[^>]*>(.*?)<\/ul>/s);
       
-      const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
-      const confidence = confidenceMatch ? confidenceMatch[1] : 'Unknown';
-      const reasoning = reasoningMatch ? reasoningMatch[1] : 'No reasoning available';
+      console.log('🔍 Prediction match:', predictionMatch);
+      console.log('🔍 Confidence match:', confidenceMatch);
+      console.log('🔍 Reasoning match:', reasoningMatch);
+      
+      let prediction = predictionMatch ? predictionMatch[1].trim() : 'Unknown';
+      const confidence = confidenceMatch ? confidenceMatch[1].trim() : 'Unknown';
+      const reasoning = reasoningMatch ? reasoningMatch[1].trim() : 'No reasoning available';
       const originalNews = originalNewsMatch ? originalNewsMatch[1] : '';
       const redFlags = redFlagsMatch ? redFlagsMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+      
+      console.log('✅ Extracted prediction:', prediction);
+      console.log('✅ Extracted confidence:', confidence);
+      console.log('✅ Extracted reasoning length:', reasoning.length);
+      
+      // Fallback if regex parsing failed
+      if (prediction === 'Unknown' && result.includes('FINAL VERDICT')) {
+        console.log('⚠️ Regex parsing failed, trying fallback extraction');
+        const fallbackMatch = result.match(/FINAL VERDICT[^:]*:\s*([^\n<]+)/i);
+        if (fallbackMatch) {
+          const fallbackPrediction = fallbackMatch[1].trim();
+          console.log('✅ Fallback prediction extracted:', fallbackPrediction);
+          prediction = fallbackPrediction;
+        }
+      }
       
       // Clear any old context and store new context for future chat
       currentContext = {
@@ -373,77 +450,28 @@ async function handlePredictionRequest(input) {
         confidence,
         reasoning,
         article: input,
-        references: currentContext.references,
-        originalNews: originalNews,
-        redFlags: redFlags
+        originalNews,
+        redFlags
       });
+      
+      // Debug: Show alert to confirm processing
+      console.log('🎯 PROCESSING COMPLETE - Prediction:', prediction, 'Confidence:', confidence);
+      
+      // Update conversation title
+      updateConversationTitle(input.substring(0, 50) + (input.length > 50 ? '...' : ''));
       
     } else {
-      // Full page response - extract data from the rendered page
-      const predictionMatch = result.match(/<h3>Prediction: ([^<]+)<\/h3>/);
-      const confidenceMatch = result.match(/<p><strong>🧠 Confidence Score:<\/strong> ([^<]+)<\/p>/);
+      console.log('⚠️ Response format not recognized, displaying raw response');
+      addMessage('ai', `**Analysis Result:**\n\n${result}`);
       
-      // Extract reasoning sections
-      const summaryMatch = result.match(/<h5>🧠 Reasoning Summary:<\/h5>\s*<p[^>]*>([^<]+)<\/p>/);
-      const breakdownMatches = result.match(/<li[^>]*>([^<]+)<\/li>/g);
-      const supportingMatches = result.match(/<li[^>]*>([^<]+)<\/li>/g);
-      const finalJudgmentMatch = result.match(/<h5>🧾 Final Judgment:<\/h5>\s*<p[^>]*>([^<]+)<\/p>/);
-      
-      // Extract references
-      const referenceMatches = result.match(/<a href="([^"]+)" target="_blank">[^<]+<\/a>/g);
-      
-      const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
-      const confidence = confidenceMatch ? confidenceMatch[1] : 'Unknown';
-      
-      // Build reasoning text
-      let reasoning = '';
-      if (summaryMatch) reasoning += `Summary: ${summaryMatch[1]}\n\n`;
-      if (breakdownMatches) {
-        reasoning += 'Key Points:\n';
-        breakdownMatches.forEach(match => {
-          const content = match.replace(/<[^>]+>/g, '').trim();
-          if (content) reasoning += `• ${content}\n`;
-        });
-        reasoning += '\n';
+      // Try to extract any useful information
+      if (result.includes('FINAL VERDICT') || result.includes('Real') || result.includes('Fake')) {
+        const verdictMatch = result.match(/(?:FINAL VERDICT|Prediction):\s*([^\n]+)/i);
+        if (verdictMatch) {
+          updateConversationTitle(`Analysis: ${verdictMatch[1].trim()}`);
+        }
       }
-      if (supportingMatches) {
-        reasoning += 'Supporting Details:\n';
-        supportingMatches.forEach(match => {
-          const content = match.replace(/<[^>]+>/g, '').trim();
-          if (content) reasoning += `• ${content}\n`;
-        });
-        reasoning += '\n';
-      }
-      if (finalJudgmentMatch) reasoning += `Final Judgment: ${finalJudgmentMatch[1]}`;
-      
-      // Extract references
-      const references = [];
-      if (referenceMatches) {
-        referenceMatches.forEach(match => {
-          const hrefMatch = match.match(/href="([^"]+)"/);
-          if (hrefMatch) references.push(hrefMatch[1]);
-        });
-      }
-      
-      // Clear any old context and store new context for future chat
-      currentContext = {
-        article: input,
-        reasoning: reasoning,
-        references: references
-      };
-      
-      // Add prediction message
-      addMessage('prediction', '', {
-        prediction,
-        confidence,
-        reasoning,
-        article: input,
-        references: currentContext.references
-      });
     }
-    
-    // Update conversation title
-    updateConversationTitle(input.substring(0, 50) + '...');
     
   } catch (error) {
     console.log('Prediction error caught:', error.message);
@@ -537,14 +565,25 @@ async function handleFilePrediction() {
     }
     
     const result = await response.text();
+    console.log('🔍 File prediction raw response from server:', result);
+    console.log('🔍 File prediction response length:', result.length);
+    console.log('🔍 File prediction response contains <b>🎯 FINAL VERDICT:</b>:', result.includes('<b>🎯 FINAL VERDICT:</b>'));
+    console.log('🔍 File prediction response contains <b>Prediction:</b>:', result.includes('<b>Prediction:</b>'));
+    console.log('🔍 File prediction response contains <b>Analysis:</b>:', result.includes('<b>Analysis:</b>'));
     
     // Parse the result similar to handlePredictionRequest
-    if (result.includes('<b>Prediction:</b>')) {
-      const predictionMatch = result.match(/<b>Prediction:<\/b> ([^<]+)/);
+    if (result.includes('<b>🎯 FINAL VERDICT:</b>') || result.includes('<b>Prediction:</b>')) {
+      console.log('✅ File prediction response format recognized as AJAX response');
+      
+      const predictionMatch = result.match(/<b>(?:🎯 FINAL VERDICT|Prediction):<\/b> ([^<]+)/);
       const confidenceMatch = result.match(/<b>Confidence:<\/b> ([^<]+)/);
-      const reasoningMatch = result.match(/<b>Reasoning:<\/b> (.+?)(?=<br><b>|$)/s);
+      const reasoningMatch = result.match(/<b>Analysis:<\/b> (.+?)(?=<br><b>|$)/s);
       const originalNewsMatch = result.match(/<b>Original News:<\/b><p[^>]*>([^<]+)<\/p>/);
       const redFlagsMatch = result.match(/<b>Red Flags:<\/b><ul[^>]*>(.*?)<\/ul>/s);
+      
+      console.log('🔍 File prediction match:', predictionMatch);
+      console.log('🔍 File confidence match:', confidenceMatch);
+      console.log('🔍 File reasoning match:', reasoningMatch);
       
       const prediction = predictionMatch ? predictionMatch[1] : 'Unknown';
       const confidence = confidenceMatch ? confidenceMatch[1] : 'Unknown';
@@ -552,42 +591,46 @@ async function handleFilePrediction() {
       const originalNews = originalNewsMatch ? originalNewsMatch[1] : '';
       const redFlags = redFlagsMatch ? redFlagsMatch[1].replace(/<[^>]+>/g, '').trim() : '';
       
+      console.log('✅ File extracted prediction:', prediction);
+      console.log('✅ File extracted confidence:', confidence);
+      console.log('✅ File extracted reasoning length:', reasoning.length);
+      
       // Clear any old context and store new context for future chat
       currentContext = {
-        article: selectedFileContent || `File: ${selectedFile.name}`,
+        article: selectedFileContent || selectedFile.name,
         reasoning: reasoning,
-        references: extractReferences(result),
-        originalNews: originalNews,
-        redFlags: redFlags
+        references: extractReferences(result)
       };
-      
-      console.log('Context stored for file prediction:', {
-        hasFileContent: !!selectedFileContent,
-        contentLength: selectedFileContent ? selectedFileContent.length : 0,
-        articlePreview: currentContext.article.substring(0, 200) + '...',
-        articleLength: currentContext.article.length
-      });
-      
-      // Also log the actual content being stored
-      if (selectedFileContent) {
-        console.log('Full file content being stored:', selectedFileContent);
-      }
       
       // Add prediction message
       addMessage('prediction', '', {
         prediction,
         confidence,
         reasoning,
-        article: selectedFileContent || `File: ${selectedFile.name}`,
-        references: currentContext.references,
-        originalNews: originalNews,
-        redFlags: redFlags
+        article: selectedFileContent || selectedFile.name,
+        originalNews,
+        redFlags
       });
       
       // Update conversation title
-      updateConversationTitle(`File: ${selectedFile.name}`);
+      updateConversationTitle(selectedFile.name + ' - Analysis');
       
-      // Clear file
+      // Clear the file
+      removeFile();
+      
+    } else {
+      console.log('⚠️ File prediction response format not recognized, displaying raw response');
+      addMessage('ai', `**File Analysis Result:**\n\n${result}`);
+      
+      // Try to extract any useful information
+      if (result.includes('FINAL VERDICT') || result.includes('Real') || result.includes('Fake')) {
+        const verdictMatch = result.match(/(?:FINAL VERDICT|Prediction):\s*([^\n]+)/i);
+        if (verdictMatch) {
+          updateConversationTitle(`File Analysis: ${verdictMatch[1].trim()}`);
+        }
+      }
+      
+      // Clear the file
       removeFile();
     }
     
@@ -668,19 +711,40 @@ async function handleChatQuestion(question) {
 
 // Add a message to the current conversation
 function addMessage(type, content, extraData = {}) {
-  const conversation = conversations.find(c => c.id === currentConversationId);
-  if (!conversation) return;
-  
-  const message = {
-    type,
-    content,
-    timestamp: new Date().toISOString(),
-    ...extraData
-  };
-  
-  conversation.messages.push(message);
-  saveConversations();
-  renderChatMessages();
+  try {
+    console.log('🔍 addMessage called with:', { type, content: content.substring(0, 100), extraData });
+    
+    const conversation = conversations.find(c => c.id === currentConversationId);
+    if (!conversation) {
+      console.error('❌ No conversation found for ID:', currentConversationId);
+      return;
+    }
+    
+    const message = {
+      type,
+      content,
+      timestamp: new Date().toISOString(),
+      ...extraData
+    };
+    
+    console.log('✅ Adding message to conversation:', message);
+    conversation.messages.push(message);
+    console.log('✅ Message added to conversation, total messages:', conversation.messages.length);
+    saveConversations();
+    console.log('✅ Conversations saved');
+    renderChatMessages();
+    console.log('✅ renderChatMessages called');
+    
+    // Force scroll to bottom
+    setTimeout(() => {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      console.log('✅ Scrolled to bottom');
+    }, 100);
+    
+    console.log('✅ Message added successfully');
+  } catch (error) {
+    console.error('❌ Error in addMessage:', error);
+  }
 }
 
 // Update conversation title
@@ -767,42 +831,6 @@ function handleKeyDown(e) {
     handleChatSubmit(e);
     return false;
   }
-}
-
-
-
-// Memory indicator functions
-async function updateMemoryIndicator() {
-  try {
-    const response = await fetch('/memory/stats');
-    const stats = await response.json();
-    
-    const indicator = document.getElementById('memory-indicator');
-    const text = indicator.querySelector('.memory-text');
-    
-    if (stats.total_conversations > 0) {
-      text.textContent = `Learned from ${stats.total_conversations} conversations`;
-      indicator.style.animation = 'none';
-    } else {
-      text.textContent = 'Ready to learn...';
-      indicator.style.animation = 'pulse 2s infinite';
-    }
-  } catch (error) {
-    console.log('Could not fetch memory stats:', error);
-  }
-}
-
-function showLearningIndicator() {
-  const indicator = document.getElementById('memory-indicator');
-  const text = indicator.querySelector('.memory-text');
-  text.textContent = 'Learning...';
-  indicator.style.animation = 'pulse 1s infinite';
-}
-
-function hideLearningIndicator() {
-  setTimeout(() => {
-    updateMemoryIndicator();
-  }, 1000);
 }
 
 // Create a simple message (for welcome message)

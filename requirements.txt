@@ -24,3 +24,4 @@ youtube-transcript-api==0.6.2
 openai-whisper==20231117
 
 lxml[html_clean]
+google-api-python-client==2.108.0

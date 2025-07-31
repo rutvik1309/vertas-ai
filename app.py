@@ -24,6 +24,7 @@ from werkzeug.utils import secure_filename
 import tempfile
 import PyPDF2
 import docx
+from datetime import datetime
 
 # Import our models and auth
 from models import db, User, Conversation, Message
@@ -79,67 +80,149 @@ try:
 except ImportError:
     pass
 
-# Configure Gemini API with multiple keys for load balancing
-gemini_api_keys = os.environ.get("GEMINI_API_KEYS", "").split(",")
-if not gemini_api_keys or gemini_api_keys[0] == "":
-    # Fallback to single key
-    gemini_api_key = os.environ.get("GEMINI_API_KEY")
-    if not gemini_api_key:
-        raise RuntimeError("GEMINI_API_KEY environment variable not set. Please set it in your deployment environment.")
-    gemini_api_keys = [gemini_api_key]
+# Configure Gemini API with multiple keys from .env
+def load_api_keys():
+    """Load API keys from environment variables"""
+    keys = []
+    
+    # Load individual keys (GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc.)
+    for i in range(1, 10):  # Support up to 9 keys
+        key = os.environ.get(f"GEMINI_API_KEY_{i}")
+        if key:
+            keys.append(key)
+    
+    # Also check for the legacy single key
+    single_key = os.environ.get("GEMINI_API_KEY")
+    if single_key and single_key not in keys:
+        keys.append(single_key)
+    
+    if not keys:
+        raise RuntimeError("No GEMINI_API_KEY environment variables found. Please set GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc. in your .env file.")
+    
+    return keys
 
-# Filter out empty keys
-gemini_api_keys = [key.strip() for key in gemini_api_keys if key.strip()]
+# Load all API keys
+gemini_api_keys = load_api_keys()
 
-# Track API key usage
-api_key_usage = {key: {"requests": 0, "last_reset": time.time(), "quota_exceeded": False} for key in gemini_api_keys}
+# Initialize API key usage tracking
+api_key_usage = {}
 current_key_index = 0
 
-# Reset all keys on startup for fresh start
+# Initialize usage for each API key
 for key in gemini_api_keys:
-    api_key_usage[key] = {"requests": 0, "last_reset": time.time(), "quota_exceeded": False}
-print(f"🔄 Reset all API keys for fresh start")
+    api_key_usage[key] = {
+        "requests": 0,
+        "last_reset": time.time(),
+        "quota_exceeded": False,
+        "minute_requests": 0,
+        "minute_reset": time.time(),
+        "last_used": 0,
+        "errors": 0,
+        "success_rate": 1.0
+    }
+
+print(f"✅ {len(gemini_api_keys)} API keys loaded and ready for rotation")
 
 def get_available_api_key():
-    """Get an available API key, rotating through them"""
+    """Get the best available API key using intelligent rotation"""
     global current_key_index
     
-    print(f"🔍 Checking API keys. Total keys: {len(gemini_api_keys)}")
+    print(f"🔍 Checking {len(gemini_api_keys)} API keys for availability")
     
-    # Check if current key is available
-    for _ in range(len(gemini_api_keys)):
-        key = gemini_api_keys[current_key_index]
+    current_time = time.time()
+    available_keys = []
+    
+    # Check all keys for availability
+    for i, key in enumerate(gemini_api_keys):
         usage = api_key_usage[key]
         
         # Reset daily quota (24 hours)
-        if time.time() - usage["last_reset"] > 86400:  # 24 hours
+        if current_time - usage["last_reset"] > 86400:  # 24 hours
             usage["requests"] = 0
-            usage["last_reset"] = time.time()
+            usage["last_reset"] = current_time
             usage["quota_exceeded"] = False
-            print(f"🔄 Reset quota for key {current_key_index}")
+            usage["errors"] = 0
+            usage["success_rate"] = 1.0
+            print(f"🔄 Reset quota for API key {i+1}")
         
-        print(f"🔑 Key {current_key_index}: requests={usage['requests']}, quota_exceeded={usage['quota_exceeded']}")
+        # Reset minute quota
+        if current_time - usage.get("minute_reset", 0) > 60:  # Reset every minute
+            usage["minute_requests"] = 0
+            usage["minute_reset"] = current_time
         
-        # Check if quota exceeded (Unlimited for Pro, 50 for free tier)
-        # For Pro tier, we'll use a higher limit or unlimited
-        daily_limit = 1000  # Higher limit for Pro tier
-        if not usage["quota_exceeded"] and usage["requests"] < daily_limit:
-            usage["requests"] += 1
-            print(f"✅ Using key {current_key_index} (requests: {usage['requests']})")
-            return key
+        # Initialize minute tracking if not exists
+        if "minute_requests" not in usage:
+            usage["minute_requests"] = 0
+            usage["minute_reset"] = current_time
         
-        # Move to next key
-        current_key_index = (current_key_index + 1) % len(gemini_api_keys)
-        print(f"⏭️ Moving to next key: {current_key_index}")
+        # Check limits
+        daily_limit = 10000  # Pro tier daily limit
+        minute_limit = 60    # Pro tier minute limit
+        
+        # Check if key is available
+        if (not usage["quota_exceeded"] and 
+            usage["requests"] < daily_limit and 
+            usage["minute_requests"] < minute_limit and
+            usage["success_rate"] > 0.1):  # Minimum 10% success rate
+            
+            available_keys.append({
+                'key': key,
+                'index': i,
+                'last_used': usage.get("last_used", 0),
+                'success_rate': usage.get("success_rate", 1.0),
+                'requests': usage["requests"],
+                'minute_requests': usage["minute_requests"]
+            })
     
-    # All keys exhausted - return None to trigger mock response
-    print("❌ All API keys have exceeded their daily quota. Using mock responses.")
-    return None
+    if not available_keys:
+        print("❌ No API keys available. All keys have exceeded limits or have low success rates.")
+        return None
+    
+    # Sort available keys by priority:
+    # 1. Highest success rate
+    # 2. Least recently used
+    # 3. Lowest current usage
+    available_keys.sort(key=lambda x: (
+        -x['success_rate'],  # Higher success rate first
+        x['last_used'],      # Least recently used first
+        x['requests']         # Lower usage first
+    ))
+    
+    selected_key = available_keys[0]
+    key = selected_key['key']
+    usage = api_key_usage[key]
+    
+    # Update usage
+    usage["requests"] += 1
+    usage["minute_requests"] += 1
+    usage["last_used"] = current_time
+    
+    print(f"✅ Selected API key {selected_key['index']+1} (success_rate: {selected_key['success_rate']:.2f}, requests: {usage['requests']}, minute: {usage['minute_requests']})")
+    
+    return key
 
 def mark_key_quota_exceeded(api_key):
     """Mark an API key as quota exceeded"""
     if api_key in api_key_usage:
         api_key_usage[api_key]["quota_exceeded"] = True
+        print(f"❌ API key marked as quota exceeded")
+
+def track_api_key_performance(api_key, success=True):
+    """Track API key performance for intelligent rotation"""
+    if api_key in api_key_usage:
+        usage = api_key_usage[api_key]
+        
+        if not success:
+            usage["errors"] += 1
+        
+        # Calculate success rate (last 100 requests)
+        total_requests = usage["requests"]
+        errors = usage["errors"]
+        
+        if total_requests > 0:
+            usage["success_rate"] = max(0.0, (total_requests - errors) / total_requests)
+        
+        print(f"📊 API key performance updated - success_rate: {usage['success_rate']:.2f}, errors: {usage['errors']}")
 
 def reset_all_api_keys():
     """Reset all API key quotas for testing"""
@@ -148,7 +231,9 @@ def reset_all_api_keys():
         api_key_usage[key] = {
             "requests": 0,
             "last_reset": time.time(),
-            "quota_exceeded": False
+            "quota_exceeded": False,
+            "minute_requests": 0,
+            "minute_reset": time.time()
         }
     print("🔄 Reset all API key quotas")
 
@@ -356,11 +441,16 @@ try:
     print(f"📁 Current working directory: {os.getcwd()}")
     print(f"📂 Checking for model files...")
     
-    # Check if final_pipeline_clean.pkl exists
+    # Check if both model files exist
     if os.path.exists("final_pipeline_clean.pkl"):
-        print("✅ Found final_pipeline_clean.pkl")
+        print("✅ Found final_pipeline_clean.pkl (Text Model)")
     else:
         print("❌ final_pipeline_clean.pkl not found")
+        
+    if os.path.exists("video_image_pipeline.pkl"):
+        print("✅ Found video_image_pipeline.pkl (Video/Image Model)")
+    else:
+        print("❌ video_image_pipeline.pkl not found")
     
     # Apply aggressive NumPy compatibility fixes
     print("🔧 Applying aggressive NumPy compatibility fixes...")
@@ -403,9 +493,9 @@ try:
     
     print("✅ Aggressive NumPy compatibility fixes applied")
     
-    # Load only final_pipeline_clean.pkl model
+    # Load your original old model (unchanged)
     try:
-        print("🔄 Loading final_pipeline_clean.pkl...")
+        print("🔄 Loading original model (final_pipeline_clean.pkl)...")
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -424,10 +514,21 @@ try:
             print(f"✅ Test prediction with dummy input: {test_result}")
         except Exception as e:
             print(f"❌ Test prediction failed: {e}")
+            
+        # Try to load video model as additional option (optional)
+        video_image_pipeline = None
+        try:
+            print("🔄 Loading video/image model (video_image_pipeline.pkl)...")
+            video_image_pipeline = joblib.load("video_image_pipeline.pkl")
+            print("✅ Video/Image model loaded successfully")
+        except Exception as e:
+            print(f"⚠️ Video/Image model not available: {e}")
+            
     except Exception as e:
-        print(f"❌ Failed to load final_pipeline_clean.pkl: {e}")
+        print(f"❌ Failed to load original model: {e}")
         print("⚠️  Model loading failed - will use basic prediction logic")
         pipeline = None
+        video_image_pipeline = None
         
 except Exception as e:
     print(f"❌ Error loading MLP pipeline: {e}")
@@ -435,11 +536,43 @@ except Exception as e:
     pipeline = None
 
 def clean_text(text):
+    """Enhanced text cleaning with better feature extraction for video content accuracy"""
+    if not text:
+        return ""
+    
+    # Remove HTML tags
     text = BeautifulSoup(text, "html.parser").get_text()
-    text = re.sub(r"[^a-zA-Z]", " ", text)
+    
+    # Enhanced cleaning for video content
+    # Keep important punctuation for sentiment analysis
+    text = re.sub(r'[^\w\s\.\!\?\,\;\:\-\(\)\[\]]', ' ', text)
+    
+    # Normalize whitespace
+    text = re.sub(r'\s+', ' ', text)
+    
+    # Convert to lowercase
     text = text.lower()
-    text = " ".join([word for word in text.split() if word not in stop_words])
-    return text
+    
+    # Remove common stop words but keep important ones for video analysis
+    important_words = [
+        'fake', 'real', 'true', 'false', 'news', 'breaking', 'urgent', 'warning', 'alert', 
+        'shocking', 'amazing', 'incredible', 'exclusive', 'revealed', 'exposed', 'unbelievable',
+        'fox', 'cnn', 'bbc', 'reuters', 'ap', 'nbc', 'abc', 'cbs', 'pbs', 'npr',
+        'trump', 'biden', 'president', 'government', 'official', 'spokesperson',
+        'credible', 'verified', 'unverified', 'source', 'evidence', 'proof',
+        'sensational', 'neutral', 'positive', 'negative', 'high', 'medium', 'low'
+    ]
+    words = text.split()
+    filtered_words = []
+    
+    for word in words:
+        if word not in stop_words or word in important_words:
+            filtered_words.append(word)
+    
+    # Reconstruct text
+    cleaned_text = ' '.join(filtered_words)
+    
+    return cleaned_text.strip()
 
 def extract_urls(text):
     # Extract markdown links and plain URLs
@@ -569,211 +702,91 @@ def get_transcript(video_id):
         return None
 
 def process_youtube_url(url):
-    """
-    Process YouTube URLs by extracting actual video content and analyzing it
-    """
+    """Enhanced YouTube URL processing with better feature extraction for higher accuracy"""
     try:
-        print(f"🎥 Processing YouTube URL: {url}")
-        
-        # Check if it's a YouTube URL
-        if not is_youtube_url(url):
-            return "Not a YouTube URL"
-        
-        # Extract video ID from URL
         video_id = extract_youtube_id(url)
         if not video_id:
-            return "Could not extract video ID from YouTube URL"
+            return "Could not extract video ID from URL"
         
-        print(f"✅ Extracted video ID: {video_id}")
+        print(f"🔄 Attempting to fetch transcript for video ID: {video_id}")
         
-        # Step 1: Try to fetch actual video transcript
-        transcript_text = get_transcript(video_id)
+        # Try to get transcript first
+        transcript = get_transcript(video_id)
         
-        if transcript_text:
-            print(f"✅ Successfully extracted transcript: {len(transcript_text)} characters")
-            print(f"📝 Transcript preview: {transcript_text[:200]}...")
-            
-            # Create comprehensive analysis with actual video content
-            content_for_analysis = f"""
-ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE:
-
-VIDEO DETAILS:
-- Video URL: {url}
-- Video ID: {video_id}
-- Platform: YouTube
-- Content Type: Video with actual transcript
-
-ACTUAL VIDEO TRANSCRIPT (REAL CONTENT):
-{transcript_text}
-
-VIDEO CONTENT ANALYSIS:
-This YouTube video has been transcribed and requires comprehensive fact-checking analysis. The video content includes:
-
-1. **ACTUAL VIDEO CONTENT**:
-   - Full transcript of the video (real spoken content)
-   - All claims, statements, and assertions made by the speaker
-   - Actual content that can be fact-checked
-   - Tone and presentation style evident in transcript
-
-2. **CONTENT CHARACTERISTICS**:
-   - Video is hosted on YouTube platform
-   - Real transcript available for detailed analysis
-   - Contains actual claims, statements, or assertions
-   - May have bias indicators or sensationalist content
-
-3. **ANALYSIS REQUIREMENTS**:
-   - Assess video credibility and accuracy based on actual spoken content
-   - Identify potential misinformation indicators in the real transcript
-   - Cross-reference claims with peer-reviewed sources
-   - Evaluate the factual accuracy of statements made
-   - Check for sensationalist language or emotional appeals
-
-4. **FACT-CHECKING CRITERIA**:
-   - Source credibility assessment
-   - Claim verification against authoritative sources
-   - Misinformation indicator detection in actual content
-   - Peer-reviewed reference identification for claims made
-   - Bias and manipulation detection in transcript
-
-VIDEO CONTENT SUMMARY:
-This is a YouTube video with a complete transcript of the actual spoken content. The video has been transcribed and needs assessment for accuracy, credibility, and potential misinformation indicators based on the REAL video content.
-
-Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
-            """.strip()
-            
-            return content_for_analysis
-        
-        # Step 2: Fallback to video metadata if transcript not available
+        # Enhanced metadata extraction with better feature engineering
         try:
             import yt_dlp
-            
             ydl_opts = {
                 'quiet': True,
                 'no_warnings': True,
-                'extract_flat': False,
-                'skip_download': True,
+                'extract_flat': True,
             }
             
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
                 
+                # Extract comprehensive metadata
                 title = info.get('title', '')
                 description = info.get('description', '')
                 uploader = info.get('uploader', '')
-                duration = info.get('duration', 0)
                 view_count = info.get('view_count', 0)
                 like_count = info.get('like_count', 0)
+                duration = info.get('duration', 0)
+                tags = info.get('tags', [])
+                
+                # Enhanced content construction with natural language format
+                content_parts = []
+                
+                # Add title in natural language
+                if title:
+                    content_parts.append(f"Video title: {title}")
+                
+                # Add description in natural language
+                if description:
+                    content_parts.append(f"Video description: {description}")
+                
+                # Add uploader information naturally
+                if uploader:
+                    content_parts.append(f"This video was uploaded by {uploader}")
+                
+                # Add engagement information naturally
+                if view_count:
+                    content_parts.append(f"The video has {view_count} views")
+                if like_count:
+                    content_parts.append(f"The video has {like_count} likes")
+                
+                # Add duration information naturally
+                if duration:
+                    minutes = duration // 60
+                    seconds = duration % 60
+                    content_parts.append(f"The video is {minutes} minutes and {seconds} seconds long")
+                
+                # Add tags naturally
+                if tags:
+                    content_parts.append(f"Video tags include: {', '.join(tags[:5])}")
+                
+                # Add transcript if available
+                if transcript:
+                    content_parts.append(f"Video transcript: {transcript}")
+                else:
+                    content_parts.append("No transcript available for this video")
+                
+                # Combine all content with natural language
+                full_content = ". ".join(content_parts)
                 
                 print(f"✅ Extracted video metadata: {title}")
+                return full_content
                 
-                # Create analysis with available metadata
-                content_for_analysis = f"""
-ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE:
-
-VIDEO DETAILS:
-- Video URL: {url}
-- Video ID: {video_id}
-- Platform: YouTube
-- Content Type: Video with metadata
-
-ACTUAL VIDEO CONTENT:
-Title: {title}
-Uploader: {uploader}
-Duration: {duration} seconds
-View Count: {view_count:,} views
-Like Count: {like_count:,} likes
-Description: {description[:1000] if description else 'No description available'}
-
-VIDEO CONTENT ANALYSIS:
-This YouTube video has been identified and requires comprehensive fact-checking analysis. The video content includes:
-
-1. **ACTUAL VIDEO CONTENT**:
-   - Video title: {title}
-   - Uploader: {uploader}
-   - Description: {description[:500] if description else 'No description'}
-   - Claims and content evident in title and description
-
-2. **CONTENT CHARACTERISTICS**:
-   - Video is hosted on YouTube platform
-   - Title and description available for analysis
-   - Contains actual claims, statements, or assertions
-   - May have bias indicators or sensationalist content
-
-3. **ANALYSIS REQUIREMENTS**:
-   - Assess video credibility and accuracy based on available content
-   - Identify potential misinformation indicators in title/description
-   - Cross-reference claims with peer-reviewed sources
-   - Evaluate the factual accuracy of statements made
-   - Check for sensationalist language or emotional appeals
-
-4. **FACT-CHECKING CRITERIA**:
-   - Source credibility assessment
-   - Claim verification against authoritative sources
-   - Misinformation indicator detection in available content
-   - Peer-reviewed reference identification for claims made
-   - Bias and manipulation detection in title/description
-
-VIDEO CONTENT SUMMARY:
-This is a YouTube video with available metadata that requires comprehensive fact-checking analysis. The video has been identified and needs assessment for accuracy, credibility, and potential misinformation indicators based on the available content.
-
-Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
-                """.strip()
+        except Exception as e:
+            print(f"❌ Could not extract video info: {e}")
+            # Fallback to basic processing
+            if transcript:
+                return f"VIDEO CONTENT: {transcript}"
+            else:
+                return f"VIDEO CONTENT: Title: {title} | Description: {description[:500]} | Transcript: Not available"
                 
-                return content_for_analysis
-                
-        except Exception as ydl_error:
-            print(f"❌ Could not extract video info: {ydl_error}")
-        
-        # Step 3: Final fallback - transcript unavailable
-        # Create basic analysis with available video information
-        content_for_analysis = f"""
-ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE:
-
-VIDEO DETAILS:
-- Video URL: {url}
-- Video ID: {video_id}
-- Platform: YouTube
-- Content Type: Video with limited metadata
-
-VIDEO CONTENT ANALYSIS:
-This YouTube video has been identified and requires comprehensive fact-checking analysis. The video content includes:
-
-1. **ACTUAL VIDEO CONTENT**:
-   - Video URL: {url}
-   - Video ID: {video_id}
-   - Platform: YouTube
-   - Content Type: Video with limited metadata available
-
-2. **CONTENT CHARACTERISTICS**:
-   - Video is hosted on YouTube platform
-   - Limited metadata available for analysis
-   - May contain claims, statements, or assertions
-   - Could have bias indicators or sensationalist content
-
-3. **ANALYSIS REQUIREMENTS**:
-   - Assess video credibility and accuracy based on available information
-   - Identify potential misinformation indicators
-   - Cross-reference with peer-reviewed sources
-   - Evaluate the factual accuracy of potential claims
-   - Check for sensationalist language or emotional appeals
-
-4. **FACT-CHECKING CRITERIA**:
-   - Source credibility assessment
-   - Claim verification against authoritative sources
-   - Misinformation indicator detection
-   - Peer-reviewed reference identification
-   - Bias and manipulation detection
-
-VIDEO CONTENT SUMMARY:
-This is a YouTube video with limited metadata that requires comprehensive fact-checking analysis. The video has been identified and needs assessment for accuracy, credibility, and potential misinformation indicators based on the available information.
-
-Please analyze this YouTube video content and provide a definitive FAKE/REAL assessment with specific evidence and relevant peer-reviewed sources.
-        """.strip()
-        
-        return content_for_analysis
-            
     except Exception as e:
-        print(f"❌ Error processing YouTube URL {url}: {e}")
+        print(f"❌ Error processing YouTube URL: {e}")
         return f"Error processing YouTube URL: {str(e)}"
 
 
@@ -1097,11 +1110,50 @@ def index():
         else:
             print("🧠 Transcript being passed to model:", cleaned_text[:200])
             print("🔎 Model prediction in progress...")
-            prediction = pipeline.predict([cleaned_text])[0]
-            confidence = pipeline.predict_proba([cleaned_text])[0].max()
+            
+            # Use your original model for text/URLs, video model only for videos
+            if url and ("youtube.com" in url or "youtu.be" in url) and video_image_pipeline is not None:
+                # Use video model for YouTube URLs
+                print("🎥 Using video model for YouTube content")
+                prediction = video_image_pipeline.predict([cleaned_text])[0]
+                confidence = video_image_pipeline.predict_proba([cleaned_text])[0].max()
+                print(f"🎯 Video model prediction: {prediction}")
+            elif pipeline is not None:
+                # Use your original model for everything else (text, URLs, articles)
+                print("📝 Using original model for text/URL content")
+                prediction = pipeline.predict([cleaned_text])[0]
+                confidence = pipeline.predict_proba([cleaned_text])[0].max()
+                print(f"🎯 Original model prediction: {prediction}")
+            else:
+                # Fallback to basic prediction
+                prediction = 0  # Default to Fake
+                confidence = 0.5
+                print("⚠️ Using fallback prediction")
+            
             print(f"✅ Test prediction: {prediction}")
+            print(f"✅ Prediction type: {type(prediction)}")
+            print(f"✅ Prediction value: {prediction}")
 
         label_map = {0: "Fake", 1: "Real"}
+        print(f"✅ Label map: {label_map}")
+        
+        # Handle both integer and string predictions
+        if isinstance(prediction, str):
+            print(f"⚠️ Warning: prediction is string '{prediction}', mapping to integer")
+            # Map string predictions to integers
+            if prediction.lower() in ['fake', 'false', '0']:
+                prediction = 0
+            elif prediction.lower() in ['real', 'true', '1']:
+                prediction = 1
+            else:
+                print(f"⚠️ Unknown prediction string '{prediction}', defaulting to 0 (Fake)")
+                prediction = 0
+        elif not isinstance(prediction, int):
+            print(f"⚠️ Warning: prediction is {type(prediction)}, converting to int")
+            prediction = int(prediction)
+        
+        print(f"✅ Final prediction: {prediction} ({type(prediction)})")
+        print(f"✅ Trying to access label_map[{prediction}] = {label_map[prediction]}")
 
         # Get comprehensive Gemini reasoning with enhanced analysis and peer-reviewed references
         prompt = f"""You are an expert fact-checker and news analyst. Analyze this content and provide a definitive assessment with comprehensive peer-reviewed references.
@@ -1203,6 +1255,9 @@ Respond in this JSON format:
                 genai.configure(api_key=available_key)
                 try:
                     gemini_response = gemini_model.generate_content(prompt)
+                    # Track successful API call
+                    track_api_key_performance(available_key, success=True)
+                    
                     # Try to parse as JSON for structured output
                     try:
                         # Clean the response text to remove any markdown formatting
@@ -1246,15 +1301,105 @@ Respond in this JSON format:
                             # Fallback if sources are just URLs
                             references_output = peer_reviewed_sources
                         
-                        # Use ML model prediction as primary, AI analysis for reasoning only
-                        # Keep the original ML prediction and confidence
+                        # Enhanced decision tree with comment analysis
                         ml_prediction = prediction
                         ml_confidence = confidence
+                        final_confidence = ml_confidence
+                        decision_explanation = []
                         
-                        # Show ML model as primary, AI as secondary
-                        ml_analysis = f"🎯 ML Model Prediction: {label_map[ml_prediction]} with {ml_confidence:.4f} confidence"
-                        ai_analysis = f"\n🤖 AI Analysis: {ai_verdict} with {ai_confidence.lower()} confidence (secondary)"
-                        reasoning_output = ml_analysis + ai_analysis + "\n\n" + reasoning_output
+                        # Step 1: ML Model Analysis
+                        if ml_confidence >= 0.9:
+                            decision_explanation.append("🔴 HIGH CONFIDENCE - ML Model is very certain")
+                            confidence_level = "🔴 HIGH CONFIDENCE"
+                        elif ml_confidence >= 0.7:
+                            decision_explanation.append("🟡 MEDIUM CONFIDENCE - ML Model is moderately certain")
+                            confidence_level = "🟡 MEDIUM CONFIDENCE"
+                        else:
+                            decision_explanation.append("🟢 LOW CONFIDENCE - ML Model is uncertain")
+                            confidence_level = "🟢 LOW CONFIDENCE"
+                        
+                        # Step 2: Comment Analysis (if available)
+                        comment_analysis = None
+                        if url and ("youtube.com" in url or "youtu.be" in url):
+                            video_id = extract_youtube_id(url)
+                            if video_id:
+                                comments = fetch_youtube_comments(video_id)
+                                if comments:
+                                    comment_analysis = analyze_comments_with_gemini(comments, gemini_model)
+                                    print(f"💬 Comment analysis: {comment_analysis.get('overall_sentiment', 'unknown')} sentiment")
+                                    
+                                    # Adjust confidence based on comment sentiment
+                                    if comment_analysis.get('skepticism_level') == 'high':
+                                        decision_explanation.append("🔎 HIGH VIEWER SKEPTICISM - Comments indicate strong doubt")
+                                        if ml_prediction == 0:  # Fake prediction
+                                            final_confidence = min(final_confidence + 0.1, 0.95)
+                                    elif comment_analysis.get('overall_sentiment') == 'supportive':
+                                        decision_explanation.append("✅ SUPPORTIVE VIEWERS - Comments indicate belief")
+                                        if ml_prediction == 1:  # Real prediction
+                                            final_confidence = min(final_confidence + 0.05, 0.95)
+                        
+                        # Step 3: AI vs ML Agreement Check
+                        ai_verdict_lower = ai_verdict.lower() if ai_verdict else ""
+                        if "real" in ai_verdict_lower and ml_prediction == 0:
+                            decision_explanation.append("⚠️ ML and AI DISAGREE - ML says Fake, AI suggests Real")
+                        elif "fake" in ai_verdict_lower and ml_prediction == 1:
+                            decision_explanation.append("⚠️ ML and AI DISAGREE - ML says Real, AI suggests Fake")
+                        else:
+                            decision_explanation.append("✅ ML and AI AGREE - Both assessments align")
+                        
+                        # Step 4: Final Decision Logic
+                        if final_confidence < 0.6:
+                            # Low confidence - suggest manual verification
+                            ml_analysis = f"⚠️ LOW CONFIDENCE PREDICTION - ML Model: {label_map[ml_prediction]} with {final_confidence:.4f} confidence"
+                            explanation = f"""
+⚠️ LOW CONFIDENCE WARNING:
+• Model confidence is only {final_confidence:.1%} - below recommended threshold
+• This prediction may not be accurate
+• Please verify manually with multiple sources
+• Consider this a preliminary assessment only
+
+📊 DECISION ANALYSIS:
+{chr(10).join(decision_explanation)}
+"""
+                        else:
+                            # High confidence - show as reliable
+                            ml_analysis = f"🎯 PRIMARY DECISION - ML Model: {label_map[ml_prediction]} with {final_confidence:.4f} confidence ({confidence_level})"
+                            explanation = f"""
+📋 HOW TO INTERPRET THIS RESULT:
+• The ML Model prediction ({label_map[ml_prediction]}) is the FINAL VERDICT
+• The AI analysis provides additional context but is NOT the final decision
+• Confidence score shows how certain the ML model is about its prediction
+
+⚠️ IMPORTANT: ML predictions are NOT 100% guaranteed to be correct
+• Confidence {final_confidence:.1%} means the model is {final_confidence:.1%} certain
+• Always verify with multiple sources for critical decisions
+• Use this as a starting point for further fact-checking
+
+📊 DECISION ANALYSIS:
+{chr(10).join(decision_explanation)}
+"""
+                        
+                        # Add comment analysis to explanation if available
+                        if comment_analysis and isinstance(comment_analysis, dict):
+                            explanation += f"""
+
+💬 VIEWER COMMENT ANALYSIS:
+• Overall Sentiment: {comment_analysis.get('overall_sentiment', 'unknown')}
+• Skepticism Level: {comment_analysis.get('skepticism_level', 'unknown')}
+• Evidence of Misinformation: {comment_analysis.get('evidence_of_misinformation', 'unknown')}
+• Summary: {comment_analysis.get('summary', 'No summary available')}
+"""
+                        
+                        ai_analysis = f"\n🤖 AI Context Analysis: {ai_verdict} with {ai_confidence.lower()} confidence (for context only)"
+                        reasoning_output = ml_analysis + ai_analysis + explanation + "\n\n" + reasoning_output
+                        
+                        # Silently learn from this interaction
+                        add_to_conversation_memory(
+                            user_input=text,
+                            ai_response=reasoning_output,
+                            prediction=ml_prediction,
+                            confidence=final_confidence
+                        )
                         
                         # Build comprehensive reasoning
                         if not reasoning_output:
@@ -1283,128 +1428,37 @@ Respond in this JSON format:
                         reasoning_output = reasoning_output.strip()
                         references_output = extract_urls(reasoning_output)
                 except Exception as e:
-                    if "429" in str(e) or "quota" in str(e).lower():
-                        print(f"❌ API key quota exceeded, marking key as exceeded and trying next key")
-                        mark_key_quota_exceeded(available_key)
-                        # Try again with a different key
-                        available_key = get_available_api_key()
-                        if available_key:
-                            print(f"🔄 Trying with new API key: {available_key[:10]}...")
-                            genai.configure(api_key=available_key)
-                            try:
-                                gemini_response = gemini_model.generate_content(prompt)
-                                # Process response as before...
-                                try:
-                                    response_text = gemini_response.text.strip()
-                                    if response_text.startswith('```json'):
-                                        response_text = response_text[7:]
-                                    if response_text.endswith('```'):
-                                        response_text = response_text[:-3]
-                                    response_text = response_text.strip()
-                                    
-                                    parsed = json.loads(response_text)
-                                    
-                                    # Use the AI's verdict instead of ML pipeline prediction
-                                    ai_verdict = parsed.get("verdict", "UNKNOWN")
-                                    ai_confidence = parsed.get("confidence", "Medium")
-                                    reasoning_output = parsed.get("reasoning", "")
-                                    peer_reviewed_sources = parsed.get("peer_reviewed_sources", [])
-                                    evidence = parsed.get("evidence", [])
-                                    red_flags = parsed.get("red_flags", [])
-                                    credibility_factors = parsed.get("credibility_factors", [])
-                                    verification = parsed.get("verification", "")
-                                    
-                                    # Convert peer-reviewed sources to references format
-                                    references_output = []
-                                    if peer_reviewed_sources and isinstance(peer_reviewed_sources, list):
-                                        for source in peer_reviewed_sources:
-                                            if isinstance(source, dict):
-                                                title = source.get("title", "Unknown Source")
-                                                url = source.get("url", "")
-                                                source_type = source.get("type", "Reference")
-                                                relevance = source.get("relevance", "")
-                                                
-                                                if url:
-                                                    references_output.append({
-                                                        "title": title,
-                                                        "url": url,
-                                                        "type": source_type,
-                                                        "relevance": relevance
-                                                    })
-                                    elif isinstance(peer_reviewed_sources, list):
-                                        # Fallback if sources are just URLs
-                                        references_output = peer_reviewed_sources
-                                    
-                                    # Use ML model prediction as primary, AI analysis for reasoning only
-                                    # Keep the original ML prediction and confidence
-                                    ml_prediction = prediction
-                                    ml_confidence = confidence
-                                    
-                                    # Show ML model as primary, AI as secondary
-                                    ml_analysis = f"🎯 ML Model Prediction: {label_map[ml_prediction]} with {ml_confidence:.4f} confidence"
-                                    ai_analysis = f"\n🤖 AI Analysis: {ai_verdict} with {ai_confidence.lower()} confidence (secondary)"
-                                    reasoning_output = ml_analysis + ai_analysis + "\n\n" + reasoning_output
-                                    
-                                    # Build comprehensive reasoning
-                                    if not reasoning_output:
-                                        reasoning_output = f"AI Analysis: {ai_verdict} news with {ai_confidence.lower()} confidence."
-                                    
-                                    if evidence:
-                                        reasoning_output += f"\n\nKey Evidence:\n" + "\n".join([f"• {point}" for point in evidence])
-                                    
-                                    if red_flags:
-                                        reasoning_output += f"\n\nRed Flags:\n" + "\n".join([f"• {flag}" for flag in red_flags])
-                                    
-                                    if credibility_factors:
-                                        reasoning_output += f"\n\nCredibility Factors:\n" + "\n".join([f"• {factor}" for factor in credibility_factors])
-                                    
-                                    if verification:
-                                        reasoning_output += f"\n\nVerification: {verification}"
-                                    
-                                    # Cache the successful analysis with ML model prediction
-                                    cache_analysis(text, {
-                                        'reasoning': reasoning_output,
-                                        'references': references_output,
-                                        'prediction': ml_prediction,  # Always use ML model prediction
-                                        'confidence': ml_confidence   # Always use ML model confidence
-                                    })
-                                except Exception as e2:
-                                    reasoning_output = gemini_response.text
-                                    if reasoning_output.startswith('```json'):
-                                        reasoning_output = reasoning_output[7:]
-                                    if reasoning_output.endswith('```'):
-                                        reasoning_output = reasoning_output[:-3]
-                                    reasoning_output = reasoning_output.strip()
-                                    references_output = extract_urls(reasoning_output)
-                            except Exception as e3:
-                                print(f"❌ Second API key also failed: {e3}")
-                                reasoning_output = f"All Gemini API keys exhausted. Using ML model prediction for analysis."
-                                references_output = []
-                                
-                                # Cache the ML-only analysis
-                                cache_analysis(text, {
-                                    'reasoning': reasoning_output,
-                                    'references': references_output,
-                                    'prediction': ml_prediction,  # Always use ML model prediction
-                                    'confidence': ml_confidence   # Always use ML model confidence
-                                })
-                        else:
-                            print("❌ All API keys exhausted, falling back to ML model prediction")
-                            reasoning_output = f"All Gemini API keys have exceeded their daily quota. Using ML model prediction for analysis."
-                            references_output = []
-                    else:
-                        reasoning_output = f"Gemini generation failed: {e}"
-                        references_output = []
+                    print(f"❌ API request failed: {e}")
+                    # Track failed API call
+                    track_api_key_performance(available_key, success=False)
+                    
+                    # Don't automatically mark as exceeded - let the quota logic handle it
+                    reasoning_output = f"AI analysis temporarily unavailable. Using ML model prediction for analysis."
+                    references_output = []
+                    
+                    # Cache the ML-only analysis
+                    cache_analysis(text, {
+                        'reasoning': reasoning_output,
+                        'references': references_output,
+                        'prediction': ml_prediction,  # Always use ML model prediction
+                        'confidence': ml_confidence   # Always use ML model confidence
+                    })
 
         summary, breakdown, supporting, final_judgment = parse_gemini_reasoning(reasoning_output)
 
-        # Store all context in session for the chat agent
-        session['last_article_text'] = text
-        session['last_reasoning'] = reasoning_output
-        session['last_references'] = references_output
-        session['last_original_news'] = original_news
-        session['last_red_flags'] = red_flags
+        # Store minimal context in session for the chat agent
+        session['last_article_text'] = text[:200] if text else ""  # Limit to 200 chars
+        session['last_reasoning'] = reasoning_output[:300] if reasoning_output else ""  # Limit to 300 chars
+        session['last_references'] = references_output[:200] if references_output else ""  # Limit to 200 chars
         session['last_prediction'] = label_map[prediction]
+        
+        # Silently learn from this interaction
+        add_to_conversation_memory(
+            user_input=text,
+            ai_response=reasoning_output,
+            prediction=prediction,
+            confidence=confidence
+        )
 
         # If AJAX request (from extension), return only the result as HTML
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1467,12 +1521,12 @@ Respond in this JSON format:
                         red_flags_html += f"<li>{flag}</li>"
                 red_flags_html += "</ul>"
             
-            return f"<b>Prediction:</b> {label_map[prediction]}<br><b>Confidence:</b> {round(float(confidence), 4)}<br><b>Reasoning:</b> {reasoning_html}{original_news_html}{red_flags_html}{references_html}"
+            return f"<b>🎯 FINAL VERDICT:</b> {label_map[prediction]}<br><b>Confidence:</b> {round(float(confidence), 4)}<br><b>Analysis:</b> {reasoning_html}{original_news_html}{red_flags_html}{references_html}"
 
         try:
             return render_template(
                 'index.html',
-                prediction=label_map[prediction],
+                prediction=f"🎯 FINAL VERDICT: {label_map[prediction]}",
                 confidence=round(float(confidence), 4),
                 summary=summary,
                 breakdown=breakdown,
@@ -1496,10 +1550,19 @@ def classify():
 
     if url:
         try:
-            article = Article(url)
-            article.download()
-            article.parse()
-            text = article.text
+            # Check if it's a YouTube URL first
+            if is_youtube_url(url):
+                print(f"🎥 Processing YouTube URL in classify: {url}")
+                text = process_youtube_url(url)
+                if not text or not text.strip():
+                    return jsonify({"error": "Could not extract content from this YouTube video."})
+                print(f"✅ Successfully processed YouTube URL, extracted {len(text)} characters")
+            else:
+                # Handle regular article URLs
+                article = Article(url)
+                article.download()
+                article.parse()
+                text = article.text
         except Exception as e:
             return jsonify({"error": f"Failed to fetch article: {e}"})
     elif file:
@@ -1509,9 +1572,90 @@ def classify():
         return jsonify({"error": "No valid text, URL, or file provided."})
 
     cleaned_text = clean_text(text)
-    prediction = pipeline.predict([cleaned_text])[0]
-    confidence = pipeline.predict_proba([cleaned_text])[0].max()
+    
+    # Use hybrid approach for YouTube content - rely more on AI analysis
+    if url and ("youtube.com" in url or "youtu.be" in url):
+        print("🎥 YouTube content detected - using hybrid analysis")
+        
+        # Check for reputable news sources in the content
+        reputable_sources = [
+            'cbc news', 'bbc news', 'reuters', 'associated press', 'ap', 
+            'cnn', 'nbc news', 'abc news', 'cbs news', 'pbs news', 'npr',
+            'fox news', 'msnbc', 'bloomberg', 'bnn bloomberg', 'cnbc',
+            'the new york times', 'washington post', 'wall street journal',
+            'usa today', 'time magazine', 'newsweek'
+        ]
+        
+        # Check if content mentions reputable sources
+        content_lower = cleaned_text.lower()
+        has_reputable_source = any(source in content_lower for source in reputable_sources)
+        
+        if has_reputable_source:
+            print("✅ Reputable news source detected in YouTube content")
+            prediction = 1  # Real for reputable sources
+            confidence = 0.75  # High confidence for reputable sources
+        else:
+            print("⚠️ No reputable source detected - checking for sensationalist content")
+            
+            # Check for sensationalist indicators
+            sensational_words = [
+                'shocking', 'amazing', 'incredible', 'unbelievable', 'exposed', 'revealed',
+                'breaking', 'urgent', 'exclusive', 'viral', 'you won\'t believe', 'incredible'
+            ]
+            
+            content_lower = cleaned_text.lower()
+            sensational_count = sum(1 for word in sensational_words if word in content_lower)
+            
+            if sensational_count >= 2:
+                print("🚨 Sensationalist content detected")
+                prediction = 0  # Fake for sensationalist content
+                confidence = 0.8
+            else:
+                print("⚠️ Unknown source - using AI analysis")
+                # Use ML model but with lower weight
+                if pipeline is not None:
+                    ml_prediction = pipeline.predict([cleaned_text])[0]
+                    ml_confidence = pipeline.predict_proba([cleaned_text])[0].max()
+                    # Blend ML and default prediction
+                    prediction = ml_prediction if ml_confidence > 0.7 else 0
+                    confidence = ml_confidence * 0.6  # Reduce confidence for YouTube
+                else:
+                    prediction = 0  # Default to Fake for unknown sources
+                    confidence = 0.5
+        
+        print(f"🎯 YouTube hybrid prediction: {'Real' if prediction == 1 else 'Fake'}")
+        print(f"🎯 YouTube hybrid confidence: {confidence:.4f}")
+    elif pipeline is not None:
+        print("📝 Using main model for content analysis")
+        prediction = pipeline.predict([cleaned_text])[0]
+        confidence = pipeline.predict_proba([cleaned_text])[0].max()
+        print(f"🎯 Main model prediction: {prediction}")
+        print(f"🎯 Main model confidence: {confidence:.4f}")
+    else:
+        # Fallback to basic prediction
+        prediction = 0  # Default to Fake
+        confidence = 0.5
+        print("⚠️ Using fallback prediction")
+    
     label_map = {0: "Fake", 1: "Real"}
+    
+    # Handle both integer and string predictions
+    if isinstance(prediction, str):
+        print(f"⚠️ Warning: prediction is string '{prediction}', mapping to integer")
+        # Map string predictions to integers
+        if prediction.lower() in ['fake', 'false', '0']:
+            prediction = 0
+        elif prediction.lower() in ['real', 'true', '1']:
+            prediction = 1
+        else:
+            print(f"⚠️ Unknown prediction string '{prediction}', defaulting to 0 (Fake)")
+            prediction = 0
+    elif not isinstance(prediction, int):
+        print(f"⚠️ Warning: prediction is {type(prediction)}, converting to int")
+        prediction = int(prediction)
+    
+    print(f"✅ Final prediction: {prediction} ({type(prediction)})")
+    print(f"✅ Trying to access label_map[{prediction}] = {label_map[prediction]}")
 
     # Retrieve similar articles for context
     context = retrieve_context(cleaned_text)
@@ -1743,6 +1887,8 @@ Taylor, J. (2024). Unity and political reconciliation: Pathways forward. *George
         genai.configure(api_key=available_key)
         try:
             gemini_response = gemini_model.generate_content(base_prompt)
+            # Track successful API call
+            track_api_key_performance(available_key, success=True)
             answer = gemini_response.text
             
             # Save conversation to memory for learning
@@ -1765,22 +1911,16 @@ Taylor, J. (2024). Unity and political reconciliation: Pathways forward. *George
                     print(f"Error saving to memory: {e}")
             
         except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower():
-                mark_key_quota_exceeded(available_key)
-                answer = f"Gemini API quota exceeded for this key. Trying another key..."
-                # Try again with a different key
-                available_key = get_available_api_key()
-                if available_key:
-                    genai.configure(api_key=available_key)
-                    try:
-                        gemini_response = gemini_model.generate_content(base_prompt)
-                        answer = gemini_response.text
-                    except Exception as e2:
-                        answer = f"All Gemini API keys exhausted. Please try again later. Error: {e2}"
-                else:
-                    answer = f"All Gemini API keys have exceeded their daily quota. Please try again tomorrow."
-            else:
-                answer = f"Error: {e}"
+            print(f"❌ API request failed: {e}")
+            # Track failed API call
+            track_api_key_performance(available_key, success=False)
+            answer = f"AI analysis temporarily unavailable. Please try again later."
+
+    # Silently learn from this chat interaction
+    add_to_conversation_memory(
+        user_input=user_question,
+        ai_response=answer
+    )
 
     return jsonify({'answer': answer})
 
@@ -1939,62 +2079,91 @@ def test_model_loading():
 
 @app.route('/get_context')
 def get_context():
+    """Get context for chat agent"""
     return jsonify({
+        'prediction': session.get('last_prediction'),
         'article': session.get('last_article_text'),
         'reasoning': session.get('last_reasoning'),
         'references': session.get('last_references') or []
     })
 
-@app.route('/memory/stats')
-def get_memory_stats():
-    """Get conversation memory statistics"""
-    return jsonify({
-        'total_conversations': len(conversation_memory),
-        'max_memory_size': MAX_MEMORY_SIZE,
-        'memory_usage_percent': (len(conversation_memory) / MAX_MEMORY_SIZE) * 100
-    })
-
 @app.route('/memory/clear', methods=['POST'])
 def clear_memory():
     """Clear all conversation memory"""
-    global conversation_memory
-    conversation_memory = []
-    save_conversation_memory()
-    return jsonify({'message': 'Memory cleared successfully'})
+    try:
+        memory_file = "conversation_memory.json"
+        if os.path.exists(memory_file):
+            os.remove(memory_file)
+        return jsonify({"message": "Memory cleared successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/memory/recent')
 def get_recent_memory():
-    """Get recent conversations for debugging"""
-    recent = conversation_memory[-10:] if len(conversation_memory) > 10 else conversation_memory
-    return jsonify({
-        'recent_conversations': recent,
-        'total_count': len(conversation_memory)
-    })
+    """Get recent conversation history"""
+    try:
+        memory_file = "conversation_memory.json"
+        if os.path.exists(memory_file):
+            with open(memory_file, 'r') as f:
+                memory = json.load(f)
+            
+            conversations = memory.get("conversations", [])
+            return jsonify({
+                "recent_conversations": conversations[-10:] if conversations else []
+            })
+        else:
+            return jsonify({"recent_conversations": []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/status')
 def get_api_status():
-    """Get API key status and usage"""
+    """Get API key status and usage with rotation details"""
+    current_time = time.time()
     status = {
         'total_keys': len(gemini_api_keys),
         'available_keys': 0,
         'quota_exceeded_keys': 0,
+        'rotation_enabled': True,
         'key_details': []
     }
     
-    for key in gemini_api_keys:
+    for i, key in enumerate(gemini_api_keys):
         usage = api_key_usage.get(key, {})
+        
+        # Calculate time since last reset
+        time_since_reset = current_time - usage.get('last_reset', current_time)
+        hours_since_reset = time_since_reset / 3600
+        
         key_info = {
+            'key_number': i + 1,
             'key_preview': key[:10] + '...' if key else 'None',
             'requests_today': usage.get('requests', 0),
+            'requests_per_minute': usage.get('minute_requests', 0),
             'quota_exceeded': usage.get('quota_exceeded', False),
-            'last_reset': usage.get('last_reset', 0)
+            'success_rate': round(usage.get('success_rate', 1.0), 3),
+            'errors': usage.get('errors', 0),
+            'last_used': usage.get('last_used', 0),
+            'hours_since_reset': round(hours_since_reset, 1),
+            'daily_limit': 10000,
+            'minute_limit': 60
         }
         status['key_details'].append(key_info)
         
-        if usage.get('quota_exceeded', False):
-            status['quota_exceeded_keys'] += 1
-        else:
+        # Check if key is currently available
+        daily_limit = 10000
+        minute_limit = 60
+        is_available = (
+            not usage.get('quota_exceeded', False) and
+            usage.get('requests', 0) < daily_limit and
+            usage.get('minute_requests', 0) < minute_limit and
+            usage.get('success_rate', 1.0) > 0.1
+        )
+        
+        if is_available:
             status['available_keys'] += 1
+        else:
+            status['quota_exceeded_keys'] += 1
     
     return jsonify(status)
 
@@ -2088,6 +2257,241 @@ def cache_analysis(text, result):
     }
     print(f"💾 Cached analysis for future use")
 
+def fetch_youtube_comments(video_id, api_key=None):
+    """Fetch YouTube comments for analysis"""
+    try:
+        if not api_key:
+            # Try to get API key from environment
+            api_key = os.getenv('YOUTUBE_API_KEY')
+        
+        if not api_key:
+            print("⚠️ No YouTube API key available for comment fetching")
+            return []
+        
+        from googleapiclient.discovery import build
+        
+        youtube = build("youtube", "v3", developerKey=api_key)
+        comments = []
+        
+        request = youtube.commentThreads().list(
+            part="snippet", 
+            videoId=video_id, 
+            maxResults=50, 
+            textFormat="plainText"
+        )
+        
+        response = request.execute()
+        
+        for item in response["items"]:
+            comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+            comments.append(comment)
+        
+        print(f"✅ Fetched {len(comments)} YouTube comments")
+        return comments
+        
+    except Exception as e:
+        print(f"❌ Error fetching YouTube comments: {e}")
+        return []
+
+def analyze_comments_with_gemini(comments, gemini_model):
+    """Analyze YouTube comments using Gemini for sentiment and skepticism detection"""
+    try:
+        if not comments:
+            return "No comments available for analysis"
+        
+        # Limit to first 20 comments for efficiency
+        sample_comments = comments[:20]
+        comments_text = "\n".join([f"Comment {i+1}: {comment}" for i, comment in enumerate(sample_comments)])
+        
+        prompt = f"""
+You are an AI fact-checking assistant. Analyze the following YouTube comments to determine public sentiment and whether viewers are skeptical, supportive, or concerned about misinformation in the video.
+
+Comments:
+{comments_text}
+
+Return a JSON response with:
+- overall_sentiment: (supportive, skeptical, sarcastic, concerned, mixed)
+- skepticism_level: (high, medium, low)
+- evidence_of_misinformation: (yes, no, unclear)
+- summary: Brief summary of viewer reactions
+- key_indicators: List of specific skeptical or supportive phrases found
+
+Format as valid JSON only.
+"""
+        
+        response = gemini_model.generate_content(prompt)
+        response_text = response.text.strip()
+        
+        # Clean up response if it has markdown formatting
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        try:
+            analysis = json.loads(response_text)
+            return analysis
+        except json.JSONDecodeError:
+            # Fallback to simple text analysis
+            return {
+                "overall_sentiment": "mixed",
+                "skepticism_level": "medium", 
+                "evidence_of_misinformation": "unclear",
+                "summary": response_text,
+                "key_indicators": []
+            }
+            
+    except Exception as e:
+        print(f"❌ Error analyzing comments with Gemini: {e}")
+        return {
+            "overall_sentiment": "unknown",
+            "skepticism_level": "unknown",
+            "evidence_of_misinformation": "unknown", 
+            "summary": "Comment analysis failed",
+            "key_indicators": []
+        }
+
+# YouTube API Configuration
+YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY', '')
+if YOUTUBE_API_KEY:
+    print(f"✅ YouTube API key configured for comment analysis")
+else:
+    print("⚠️ No YouTube API key found - comment analysis will be disabled")
+
+def add_to_conversation_memory(user_input, ai_response, prediction=None, confidence=None):
+    """Silently learn from user interactions without displaying learning message"""
+    try:
+        # Load existing memory
+        memory_file = "conversation_memory.json"
+        if os.path.exists(memory_file):
+            with open(memory_file, 'r') as f:
+                memory = json.load(f)
+        else:
+            memory = {"conversations": [], "patterns": {}, "user_preferences": {}}
+        
+        # Add new interaction
+        interaction = {
+            "timestamp": datetime.now().isoformat(),
+            "user_input": user_input,
+            "ai_response": ai_response,
+            "prediction": prediction,
+            "confidence": confidence,
+            "input_type": "text" if not any(ext in user_input.lower() for ext in ['.jpg', '.png', '.mp4', '.mp3']) else "media"
+        }
+        
+        memory["conversations"].append(interaction)
+        
+        # Learn patterns (silently)
+        learn_from_interaction(interaction, memory)
+        
+        # Keep only last 1000 conversations to prevent file bloat
+        if len(memory["conversations"]) > 1000:
+            memory["conversations"] = memory["conversations"][-1000:]
+        
+        # Save updated memory
+        with open(memory_file, 'w') as f:
+            json.dump(memory, f, indent=2)
+            
+    except Exception as e:
+        # Silently handle errors - don't show learning message
+        pass
+
+def learn_from_interaction(interaction, memory):
+    """Extract patterns and preferences from user interactions"""
+    try:
+        user_input = interaction["user_input"].lower()
+        
+        # Learn about user's preferred content types
+        if "youtube" in user_input or "video" in user_input:
+            memory["user_preferences"]["content_type"] = memory["user_preferences"].get("content_type", [])
+            if "video" not in memory["user_preferences"]["content_type"]:
+                memory["user_preferences"]["content_type"].append("video")
+        
+        if "image" in user_input or "photo" in user_input:
+            memory["user_preferences"]["content_type"] = memory["user_preferences"].get("content_type", [])
+            if "image" not in memory["user_preferences"]["content_type"]:
+                memory["user_preferences"]["content_type"].append("image")
+        
+        # Learn about user's topics of interest
+        topics = extract_topics(user_input)
+        for topic in topics:
+            if topic not in memory["patterns"]:
+                memory["patterns"][topic] = {"count": 0, "last_seen": None}
+            memory["patterns"][topic]["count"] += 1
+            memory["patterns"][topic]["last_seen"] = interaction["timestamp"]
+        
+        # Learn about user's confidence preferences
+        if interaction.get("confidence"):
+            if interaction["confidence"] < 0.6:
+                memory["user_preferences"]["low_confidence_handling"] = memory["user_preferences"].get("low_confidence_handling", 0) + 1
+            elif interaction["confidence"] > 0.8:
+                memory["user_preferences"]["high_confidence_handling"] = memory["user_preferences"].get("high_confidence_handling", 0) + 1
+                
+    except Exception as e:
+        # Silently handle learning errors
+        pass
+
+def extract_topics(text):
+    """Extract key topics from user input"""
+    topics = []
+    
+    # Political topics
+    political_keywords = ["trump", "biden", "president", "government", "politics", "election"]
+    for keyword in political_keywords:
+        if keyword in text:
+            topics.append(f"politics_{keyword}")
+    
+    # News topics
+    news_keywords = ["news", "breaking", "update", "report", "story"]
+    for keyword in news_keywords:
+        if keyword in text:
+            topics.append(f"news_{keyword}")
+    
+    # Platform topics
+    platform_keywords = ["youtube", "facebook", "twitter", "instagram", "tiktok"]
+    for keyword in platform_keywords:
+        if keyword in text:
+            topics.append(f"platform_{keyword}")
+    
+    # Content type topics
+    content_keywords = ["video", "image", "photo", "audio", "text"]
+    for keyword in content_keywords:
+        if keyword in text:
+            topics.append(f"content_{keyword}")
+    
+    return topics
+
+def get_user_preferences():
+    """Get learned user preferences for personalized responses"""
+    try:
+        memory_file = "conversation_memory.json"
+        if os.path.exists(memory_file):
+            with open(memory_file, 'r') as f:
+                memory = json.load(f)
+            return memory.get("user_preferences", {})
+        return {}
+    except:
+        return {}
+
+def get_relevant_patterns(current_input):
+    """Get relevant patterns based on current user input"""
+    try:
+        memory_file = "conversation_memory.json"
+        if os.path.exists(memory_file):
+            with open(memory_file, 'r') as f:
+                memory = json.load(f)
+            
+            current_topics = extract_topics(current_input.lower())
+            relevant_patterns = {}
+            
+            for topic in current_topics:
+                if topic in memory.get("patterns", {}):
+                    relevant_patterns[topic] = memory["patterns"][topic]
+            
+            return relevant_patterns
+        return {}
+    except:
+        return {}
 
 if __name__ == "__main__":
     # Add auto-recovery and keep-alive functionality

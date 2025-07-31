@@ -1,53 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Veritas AI Extension</title>
-  <link rel="stylesheet" href="popup.css?v=1.3">
+  <title>Veritas AI - News Fact Checker</title>
+  <link rel="stylesheet" href="popup.css?v=1.5">
   <script src="marked.min.js"></script>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body class="theme-dark">
-  <div class="sidebar">
-    <img src="icon.png" class="sidebar-logo" alt="Logo">
-    <button id="new-chat-btn" class="new-chat-btn">
-      <span>+</span> New Chat
-    </button>
-    <div id="conversations-list" class="conversations-list">
-      <!-- Conversations will be populated here -->
-    </div>
-  </div>
-  <div class="main-content">
-    <header class="main-header">
-      <span class="brand">Veritas AI</span>
-      <div class="header-controls">
-        <div class="memory-indicator" id="memory-indicator" title="AI Learning Memory">
-          <span class="memory-icon">🧠</span>
-          <span class="memory-text">Learning...</span>
-        </div>
-        <button id="theme-toggle" title="Toggle theme">🌙</button>
+  <div class="app-container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <img src="icon.png" class="sidebar-logo" alt="Logo">
+        <h1 class="app-title">Veritas AI</h1>
       </div>
-    </header>
+      <button id="new-chat-btn" class="new-chat-btn">
+        <span>+</span> New Chat
+      </button>
+      <div id="conversations-list" class="conversations-list">
+        <!-- Conversations will be populated here -->
+      </div>
+    </div>
     
-    <div id="chat-container" class="chat-container">
-      <div id="chat-messages" class="chat-messages">
-        <!-- Messages will be populated here -->
-      </div>
+    <div class="main-content">
+      <header class="main-header">
+        <div class="header-left">
+          <span class="brand">Veritas AI - News Fact Checker</span>
+        </div>
+        <div class="header-controls">
+          <button id="theme-toggle" title="Toggle theme">🌙</button>
+        </div>
+      </header>
       
-                  <div class="input-area">
-                <form id="chat-form" class="chat-form" onsubmit="return false;">
-                    <div class="input-row">
-                        <input type="text" id="user-input" placeholder="Ask about news or paste an article..." autocomplete="off">
-                        <input type="file" id="file-input" accept=".pdf,.doc,.docx,.txt,image/*,audio/*,video/*" style="display: none;">
-                        <button type="button" id="file-upload-btn" class="file-upload-btn" title="Upload file">📎</button>
-                        <button type="submit" id="send-btn">Send</button>
-                    </div>
-                    <div id="file-preview" class="file-preview">
-                        <!-- File preview will be shown here -->
-                    </div>
-                </form>
+      <div id="chat-container" class="chat-container">
+        <div id="chat-messages" class="chat-messages">
+          <!-- Messages will be populated here -->
+        </div>
+        
+        <div class="input-area">
+          <form id="chat-form" class="chat-form">
+            <div class="input-row">
+              <input type="text" id="user-input" placeholder="Ask about news or paste an article..." autocomplete="off">
+              <input type="file" id="file-input" accept=".pdf,.doc,.docx,.txt,image/*,audio/*,video/*" style="display: none;">
+              <button type="button" id="file-upload-btn" class="file-upload-btn" title="Upload file">📎</button>
+              <button type="submit" id="send-btn">Send</button>
             </div>
+            <div id="file-preview" class="file-preview">
+              <!-- File preview will be shown here -->
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
-      <script src="popup.js?v=1.5"></script>
+  
+  <script src="popup.js?v=2.0"></script>
 </body>
 </html>
