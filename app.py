@@ -1209,13 +1209,18 @@ Respond in this JSON format:
         original_news = None
         red_flags = None
         
-        # Check cache first
+        # Always use ML model prediction as primary, cache only for reasoning enhancement
+        ml_prediction = prediction
+        ml_confidence = confidence
+        
+        # Check cache for reasoning enhancement only
         cached_result = get_cached_analysis(text)
         if cached_result:
             reasoning_output = cached_result['reasoning']
             references_output = cached_result['references']
-            prediction = cached_result['prediction']
-            confidence = cached_result['confidence']
+            # Keep ML model prediction, don't override with cached prediction
+            prediction = ml_prediction
+            confidence = ml_confidence
         else:
             # Try to get an available API key
             available_key = get_available_api_key()
@@ -1383,12 +1388,12 @@ Respond in this JSON format:
                                     if verification:
                                         reasoning_output += f"\n\nVerification: {verification}"
                                     
-                                    # Cache the successful analysis
+                                    # Cache the successful analysis with ML model prediction
                                     cache_analysis(text, {
                                         'reasoning': reasoning_output,
                                         'references': references_output,
-                                        'prediction': prediction,
-                                        'confidence': confidence
+                                        'prediction': ml_prediction,  # Always use ML model prediction
+                                        'confidence': ml_confidence   # Always use ML model confidence
                                     })
                                 except Exception as e2:
                                     reasoning_output = gemini_response.text
@@ -1407,8 +1412,8 @@ Respond in this JSON format:
                                 cache_analysis(text, {
                                     'reasoning': reasoning_output,
                                     'references': references_output,
-                                    'prediction': prediction,
-                                    'confidence': confidence
+                                    'prediction': ml_prediction,  # Always use ML model prediction
+                                    'confidence': ml_confidence   # Always use ML model confidence
                                 })
                         else:
                             print("❌ All API keys exhausted, falling back to ML model prediction")
