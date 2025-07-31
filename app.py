@@ -1366,9 +1366,6 @@ Respond in this JSON format:
                                     # Add AI analysis to reasoning but don't override ML prediction
                                     ai_analysis = f"\n\n🤖 AI Analysis: {ai_verdict} with {ai_confidence.lower()} confidence"
                                     reasoning_output = ai_analysis + "\n\n" + reasoning_output
-                                    else:
-                                        # Keep original ML prediction if AI couldn't determine
-                                        confidence = 0.5
                                     
                                     # Build comprehensive reasoning
                                     if not reasoning_output:
