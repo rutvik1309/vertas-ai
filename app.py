@@ -356,17 +356,7 @@ try:
     print(f"📁 Current working directory: {os.getcwd()}")
     print(f"📂 Checking for model files...")
     
-    # Check if model files exist
-    if os.path.exists("final_pipeline_2025_v1.pkl"):
-        print("✅ Found final_pipeline_2025_v1.pkl")
-    else:
-        print("❌ final_pipeline_2025_v1.pkl not found")
-    
-    if os.path.exists("final_pipeline_clean_fixed.pkl"):
-        print("✅ Found final_pipeline_clean_fixed.pkl")
-    else:
-        print("❌ final_pipeline_clean_fixed.pkl not found")
-    
+    # Check if final_pipeline_clean.pkl exists
     if os.path.exists("final_pipeline_clean.pkl"):
         print("✅ Found final_pipeline_clean.pkl")
     else:
@@ -413,19 +403,19 @@ try:
     
     print("✅ Aggressive NumPy compatibility fixes applied")
     
-    # Try to load the new model with detailed logging
+    # Load only final_pipeline_clean.pkl model
     try:
-        print("🔄 Attempting to load final_pipeline_2025_v1.pkl...")
+        print("🔄 Loading final_pipeline_clean.pkl...")
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             import joblib
-            pipeline = joblib.load("final_pipeline_2025_v1.pkl")
+            pipeline = joblib.load("final_pipeline_clean.pkl")
         print("✅ Checking model type and methods...")
         print(f"Type: {type(pipeline)}")
         print(f"Has predict: {hasattr(pipeline, 'predict')}")
         print(f"Has predict_proba: {hasattr(pipeline, 'predict_proba')}")
-        print("✅ New MLP pipeline loaded successfully")
+        print("✅ final_pipeline_clean.pkl loaded successfully")
         
         # Test with dummy input to verify model works
         test_input = "The president announced a new policy on education."
@@ -434,29 +424,10 @@ try:
             print(f"✅ Test prediction with dummy input: {test_result}")
         except Exception as e:
             print(f"❌ Test prediction failed: {e}")
-    except Exception as e1:
-        print(f"❌ Failed to load new model: {e1}")
-        # Fallback to fixed model
-        try:
-            print("🔄 Attempting to load fixed model...")
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                import joblib
-                pipeline = joblib.load("final_pipeline_clean_fixed.pkl")
-            print("✅ Fixed MLP pipeline loaded successfully")
-        except Exception as e2:
-            print(f"❌ Failed to load fixed model: {e2}")
-            # Fallback to original model
-            try:
-                print("🔄 Attempting to load original model...")
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    import joblib
-                    pipeline = joblib.load("final_pipeline_clean.pkl")
-                print("✅ Original MLP pipeline loaded successfully")
-            except Exception as e3:
-                print(f"❌ Failed to load original model: {e3}")
-                raise e3
+    except Exception as e:
+        print(f"❌ Failed to load final_pipeline_clean.pkl: {e}")
+        print("⚠️  Model loading failed - will use basic prediction logic")
+        pipeline = None
         
 except Exception as e:
     print(f"❌ Error loading MLP pipeline: {e}")
@@ -1280,9 +1251,10 @@ Respond in this JSON format:
                         ml_prediction = prediction
                         ml_confidence = confidence
                         
-                        # Add AI analysis to reasoning but don't override ML prediction
-                        ai_analysis = f"\n\n🤖 AI Analysis: {ai_verdict} with {ai_confidence.lower()} confidence"
-                        reasoning_output = ai_analysis + "\n\n" + reasoning_output
+                        # Show ML model as primary, AI as secondary
+                        ml_analysis = f"🎯 ML Model Prediction: {label_map[ml_prediction]} with {ml_confidence:.4f} confidence"
+                        ai_analysis = f"\n🤖 AI Analysis: {ai_verdict} with {ai_confidence.lower()} confidence (secondary)"
+                        reasoning_output = ml_analysis + ai_analysis + "\n\n" + reasoning_output
                         
                         # Build comprehensive reasoning
                         if not reasoning_output:
@@ -1368,9 +1340,10 @@ Respond in this JSON format:
                                     ml_prediction = prediction
                                     ml_confidence = confidence
                                     
-                                    # Add AI analysis to reasoning but don't override ML prediction
-                                    ai_analysis = f"\n\n🤖 AI Analysis: {ai_verdict} with {ai_confidence.lower()} confidence"
-                                    reasoning_output = ai_analysis + "\n\n" + reasoning_output
+                                    # Show ML model as primary, AI as secondary
+                                    ml_analysis = f"🎯 ML Model Prediction: {label_map[ml_prediction]} with {ml_confidence:.4f} confidence"
+                                    ai_analysis = f"\n🤖 AI Analysis: {ai_verdict} with {ai_confidence.lower()} confidence (secondary)"
+                                    reasoning_output = ml_analysis + ai_analysis + "\n\n" + reasoning_output
                                     
                                     # Build comprehensive reasoning
                                     if not reasoning_output:
