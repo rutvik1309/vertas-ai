@@ -316,7 +316,7 @@ function createMessageElement(message) {
         ${message.reasoning}
         ${originalNewsHtml}
         ${redFlagsHtml}
-        ${message.references ? `<h5>🔗 References:</h5>${message.references}` : ''}
+        ${message.references ? `<h5>🔗 References & Sources:</h5><ul>${Array.isArray(message.references) ? message.references.map(ref => `<li>${ref}</li>`).join('') : `<li>${message.references}</li>`}</ul>` : '<h5>🔗 References:</h5><p>No specific references provided. Manual fact-checking recommended.</p>'}
       </div>
     `;
     console.log('✅ Prediction HTML set:', content.innerHTML.substring(0, 100));

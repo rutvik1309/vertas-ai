@@ -1664,7 +1664,7 @@ def classify():
 
     # Gemini prompt for structured JSON output
     prompt = f"""
-    You are a fact-checker. Based on the article and context, classify as FAKE or REAL with explanation.
+    You are a fact-checker. Analyze the article and provide detailed reasoning with specific references.
 
     Article:
     {cleaned_text[:2000]}
@@ -1672,11 +1672,23 @@ def classify():
     Context from similar articles:
     {context_str}
 
-    Respond ONLY in JSON with:
+    Provide a comprehensive analysis including:
+    1. Fact-checking of specific claims
+    2. Source verification
+    3. Credibility assessment
+    4. Specific references to verify claims
+
+    Respond ONLY in JSON format:
     {{
-      "reasoning": "...",
-      "references": ["..."]
+      "reasoning": "Detailed analysis explaining why the article is real or fake, including specific claims that were verified or debunked",
+      "references": [
+        "Specific source 1: [URL or publication name] - for claim about [specific claim]",
+        "Specific source 2: [URL or publication name] - for claim about [specific claim]",
+        "Fact-checking source: [URL] - verifies/debunks [specific claim]"
+      ]
     }}
+
+    IMPORTANT: Include specific, verifiable references for each major claim in the article. If claims cannot be verified, state this clearly.
     """
 
     try:
@@ -1688,8 +1700,26 @@ def classify():
             }
         )
         parsed = json.loads(response.text)
+        
+        # Validate that we got proper references
+        if not parsed.get("references") or len(parsed.get("references", [])) == 0:
+            print("⚠️ No references provided by Gemini, adding fallback references")
+            parsed["references"] = [
+                "Fact-checking needed: Claims in this article require verification from reputable sources",
+                "Recommendation: Check Reuters, AP, BBC, or other established news organizations",
+                "Note: Specific claims should be cross-referenced with official government sources"
+            ]
+            
     except Exception as e:
-        parsed = {"reasoning": f"Failed to parse Gemini output: {e}", "references": []}
+        print(f"❌ Gemini analysis failed: {e}")
+        parsed = {
+            "reasoning": f"AI analysis temporarily unavailable. Using ML model prediction for analysis. Error: {e}",
+            "references": [
+                "System temporarily unavailable - manual fact-checking recommended",
+                "Check Reuters, AP, BBC for verification",
+                "Cross-reference with official government sources"
+            ]
+        }
 
     return jsonify({
         "prediction": label_map[prediction],
