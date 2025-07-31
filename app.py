@@ -1270,16 +1270,14 @@ Respond in this JSON format:
                             # Fallback if sources are just URLs
                             references_output = peer_reviewed_sources
                         
-                        # Update prediction based on AI analysis
-                        if ai_verdict.upper() == "FAKE":
-                            prediction = 0  # Fake
-                            confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
-                        elif ai_verdict.upper() == "REAL":
-                            prediction = 1  # Real
-                            confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
-                        else:
-                            # Keep original ML prediction if AI couldn't determine
-                            confidence = 0.5
+                        # Use ML model prediction as primary, AI analysis for reasoning only
+                        # Keep the original ML prediction and confidence
+                        ml_prediction = prediction
+                        ml_confidence = confidence
+                        
+                        # Add AI analysis to reasoning but don't override ML prediction
+                        ai_analysis = f"\n\n🤖 AI Analysis: {ai_verdict} with {ai_confidence.lower()} confidence"
+                        reasoning_output = ai_analysis + "\n\n" + reasoning_output
                         
                         # Build comprehensive reasoning
                         if not reasoning_output:
@@ -1360,13 +1358,14 @@ Respond in this JSON format:
                                         # Fallback if sources are just URLs
                                         references_output = peer_reviewed_sources
                                     
-                                    # Update prediction based on AI analysis
-                                    if ai_verdict.upper() == "FAKE":
-                                        prediction = 0  # Fake
-                                        confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
-                                    elif ai_verdict.upper() == "REAL":
-                                        prediction = 1  # Real
-                                        confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
+                                    # Use ML model prediction as primary, AI analysis for reasoning only
+                                    # Keep the original ML prediction and confidence
+                                    ml_prediction = prediction
+                                    ml_confidence = confidence
+                                    
+                                    # Add AI analysis to reasoning but don't override ML prediction
+                                    ai_analysis = f"\n\n🤖 AI Analysis: {ai_verdict} with {ai_confidence.lower()} confidence"
+                                    reasoning_output = ai_analysis + "\n\n" + reasoning_output
                                     else:
                                         # Keep original ML prediction if AI couldn't determine
                                         confidence = 0.5
