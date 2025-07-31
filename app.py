@@ -61,7 +61,7 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev_secret_key")  # Needed for session
+app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")  # Needed for session
 app.config.update(
     SESSION_COOKIE_SAMESITE="None",
     SESSION_COOKIE_SECURE=True
@@ -2515,4 +2515,4 @@ if __name__ == "__main__":
     
     print("🚀 Starting VeritasAI with auto-recovery...")
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)

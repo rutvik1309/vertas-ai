@@ -22,6 +22,7 @@ numpy==1.24.4
 yt-dlp==2025.7.21
 youtube-transcript-api==0.6.2
 openai-whisper==20231117
+python-dotenv==1.0.0
 
 lxml[html_clean]
 google-api-python-client==2.108.0

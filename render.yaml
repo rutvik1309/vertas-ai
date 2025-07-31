@@ -4,14 +4,32 @@ services:
     env: python
     plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    startCommand: gunicorn -c gunicorn.conf.py app:app
     envVars:
       - key: FLASK_ENV
         value: production
-      - key: FLASK_SECRET_KEY
+      - key: FLASK_DEBUG
+        value: 0
+      - key: SECRET_KEY
         generateValue: true
-      - key: GEMINI_API_KEYS
-        sync: false
+      - key: GEMINI_API_KEY_1
+        value: YOUR_API_KEY_1_HERE
+      - key: GEMINI_API_KEY_2
+        value: YOUR_API_KEY_2_HERE
+      - key: GEMINI_API_KEY_3
+        value: YOUR_API_KEY_3_HERE
+      - key: GEMINI_API_KEY_4
+        value: YOUR_API_KEY_4_HERE
+      - key: GEMINI_API_KEY_5
+        value: YOUR_API_KEY_5_HERE
+      - key: GEMINI_API_KEY_6
+        value: YOUR_API_KEY_6_HERE
+      - key: GEMINI_API_KEY_7
+        value: YOUR_API_KEY_7_HERE
+      - key: GEMINI_API_KEY_8
+        value: YOUR_API_KEY_8_HERE
+      - key: GEMINI_API_KEY
+        value: YOUR_LEGACY_API_KEY_HERE
       - key: DATABASE_URL
         value: sqlite:///veritas_ai.db
       - key: PYTHON_VERSION
