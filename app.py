@@ -1284,11 +1284,12 @@ Respond in this JSON format:
                     references_output = extract_urls(reasoning_output)
             except Exception as e:
                 if "429" in str(e) or "quota" in str(e).lower():
+                    print(f"❌ API key quota exceeded, marking key as exceeded and trying next key")
                     mark_key_quota_exceeded(available_key)
-                    reasoning_output = f"Gemini API quota exceeded for this key. Trying another key..."
                     # Try again with a different key
                     available_key = get_available_api_key()
                     if available_key:
+                        print(f"🔄 Trying with new API key: {available_key[:10]}...")
                         genai.configure(api_key=available_key)
                         try:
                             gemini_response = gemini_model.generate_content(prompt)
@@ -1369,10 +1370,12 @@ Respond in this JSON format:
                                 reasoning_output = reasoning_output.strip()
                                 references_output = extract_urls(reasoning_output)
                         except Exception as e3:
-                            reasoning_output = f"All Gemini API keys exhausted. Please try again later. Error: {e3}"
+                            print(f"❌ Second API key also failed: {e3}")
+                            reasoning_output = f"All Gemini API keys exhausted. Using ML model prediction for analysis."
                             references_output = []
                     else:
-                        reasoning_output = f"All Gemini API keys have exceeded their daily quota. Please try again tomorrow."
+                        print("❌ All API keys exhausted, falling back to ML model prediction")
+                        reasoning_output = f"All Gemini API keys have exceeded their daily quota. Using ML model prediction for analysis."
                         references_output = []
                 else:
                     reasoning_output = f"Gemini generation failed: {e}"
