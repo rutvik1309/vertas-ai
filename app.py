@@ -404,9 +404,8 @@ try:
             warnings.simplefilter("ignore")
             import joblib
             pipeline = joblib.load("final_pipeline_2025_v1.pkl")
-        print(f"🔍 Loaded model from final_pipeline_2025_v1.pkl: {type(pipeline)}")
-        print(f"✅ Model has predict: {hasattr(pipeline, 'predict')}")
-        print(f"✅ Model has predict_proba: {hasattr(pipeline, 'predict_proba')}")
+        print(f"✅ Loaded model type: {type(pipeline)}")
+        print(f"✅ predict: {hasattr(pipeline, 'predict')}, predict_proba: {hasattr(pipeline, 'predict_proba')}")
         print("✅ New MLP pipeline loaded successfully")
     except Exception as e1:
         print(f"❌ Failed to load new model: {e1}")
