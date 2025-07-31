@@ -72,6 +72,13 @@ CORS(
     allow_headers=["Content-Type", "X-Requested-With"]
 )
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Configure Gemini API with multiple keys for load balancing
 gemini_api_keys = os.environ.get("GEMINI_API_KEYS", "").split(",")
 if not gemini_api_keys or gemini_api_keys[0] == "":
@@ -81,9 +88,17 @@ if not gemini_api_keys or gemini_api_keys[0] == "":
         raise RuntimeError("GEMINI_API_KEY environment variable not set. Please set it in your deployment environment.")
     gemini_api_keys = [gemini_api_key]
 
+# Filter out empty keys
+gemini_api_keys = [key.strip() for key in gemini_api_keys if key.strip()]
+
 # Track API key usage
 api_key_usage = {key: {"requests": 0, "last_reset": time.time(), "quota_exceeded": False} for key in gemini_api_keys}
 current_key_index = 0
+
+# Reset all keys on startup for fresh start
+for key in gemini_api_keys:
+    api_key_usage[key] = {"requests": 0, "last_reset": time.time(), "quota_exceeded": False}
+print(f"🔄 Reset all API keys for fresh start")
 
 def get_available_api_key():
     """Get an available API key, rotating through them"""
@@ -105,8 +120,10 @@ def get_available_api_key():
         
         print(f"🔑 Key {current_key_index}: requests={usage['requests']}, quota_exceeded={usage['quota_exceeded']}")
         
-        # Check if quota exceeded (50 requests per day per key)
-        if not usage["quota_exceeded"] and usage["requests"] < 50:
+        # Check if quota exceeded (Unlimited for Pro, 50 for free tier)
+        # For Pro tier, we'll use a higher limit or unlimited
+        daily_limit = 1000  # Higher limit for Pro tier
+        if not usage["quota_exceeded"] and usage["requests"] < daily_limit:
             usage["requests"] += 1
             print(f"✅ Using key {current_key_index} (requests: {usage['requests']})")
             return key
@@ -225,8 +242,8 @@ else:
 
 # Try different models in order of preference
 try:
-    gemini_model = genai.GenerativeModel("models/gemini-1.5-flash")
-    print("Using gemini-1.5-flash model")
+    gemini_model = genai.GenerativeModel("models/gemini-1.5-pro")
+    print("Using gemini-1.5-pro model")
 except Exception as e:
     try:
         gemini_model = genai.GenerativeModel("models/gemini-1.5-pro")
@@ -243,7 +260,7 @@ except Exception as e:
 chroma_settings = Settings(is_persistent=False)
 
 chroma_client = Client(settings=chroma_settings)
-embedding_func = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key="AIzaSyA7APWpWr4LizACI9OBsJyunrVSnYkFNaA")
+embedding_func = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key=gemini_api_keys[0])
 collection = chroma_client.get_or_create_collection(name="news_articles", embedding_function=embedding_func)
 
 # Global conversation memory for learning
@@ -1192,194 +1209,218 @@ Respond in this JSON format:
         original_news = None
         red_flags = None
         
-        # Try to get an available API key
-        available_key = get_available_api_key()
-        if available_key is None:
-            reasoning_output = "All Gemini API keys have exceeded their daily quota. Please try again tomorrow or contact support."
-            references_output = []
+        # Check cache first
+        cached_result = get_cached_analysis(text)
+        if cached_result:
+            reasoning_output = cached_result['reasoning']
+            references_output = cached_result['references']
+            prediction = cached_result['prediction']
+            confidence = cached_result['confidence']
         else:
-            # Configure with available key
-            genai.configure(api_key=available_key)
-            try:
-                gemini_response = gemini_model.generate_content(prompt)
-                # Try to parse as JSON for structured output
+            # Try to get an available API key
+            available_key = get_available_api_key()
+            if available_key is None:
+                reasoning_output = "All Gemini API keys have exceeded their daily quota. Please try again tomorrow or contact support."
+                references_output = []
+            else:
+                # Configure with available key
+                genai.configure(api_key=available_key)
                 try:
-                    # Clean the response text to remove any markdown formatting
-                    response_text = gemini_response.text.strip()
-                    if response_text.startswith('```json'):
-                        response_text = response_text[7:]
-                    if response_text.endswith('```'):
-                        response_text = response_text[:-3]
-                    response_text = response_text.strip()
-                    
-                    parsed = json.loads(response_text)
-                    
-                    # Use the AI's verdict instead of ML pipeline prediction
-                    ai_verdict = parsed.get("verdict", "UNKNOWN")
-                    ai_confidence = parsed.get("confidence", "Medium")
-                    reasoning_output = parsed.get("reasoning", "")
-                    peer_reviewed_sources = parsed.get("peer_reviewed_sources", [])
-                    evidence = parsed.get("evidence", [])
-                    red_flags = parsed.get("red_flags", [])
-                    credibility_factors = parsed.get("credibility_factors", [])
-                    verification = parsed.get("verification", "")
-                    
-                    # Convert peer-reviewed sources to references format
-                    references_output = []
-                    if peer_reviewed_sources and isinstance(peer_reviewed_sources, list):
-                        for source in peer_reviewed_sources:
-                            if isinstance(source, dict):
-                                title = source.get("title", "Unknown Source")
-                                url = source.get("url", "")
-                                source_type = source.get("type", "Reference")
-                                relevance = source.get("relevance", "")
+                    gemini_response = gemini_model.generate_content(prompt)
+                    # Try to parse as JSON for structured output
+                    try:
+                        # Clean the response text to remove any markdown formatting
+                        response_text = gemini_response.text.strip()
+                        if response_text.startswith('```json'):
+                            response_text = response_text[7:]
+                        if response_text.endswith('```'):
+                            response_text = response_text[:-3]
+                        response_text = response_text.strip()
+                        
+                        parsed = json.loads(response_text)
+                        
+                        # Use the AI's verdict instead of ML pipeline prediction
+                        ai_verdict = parsed.get("verdict", "UNKNOWN")
+                        ai_confidence = parsed.get("confidence", "Medium")
+                        reasoning_output = parsed.get("reasoning", "")
+                        peer_reviewed_sources = parsed.get("peer_reviewed_sources", [])
+                        evidence = parsed.get("evidence", [])
+                        red_flags = parsed.get("red_flags", [])
+                        credibility_factors = parsed.get("credibility_factors", [])
+                        verification = parsed.get("verification", "")
+                        
+                        # Convert peer-reviewed sources to references format
+                        references_output = []
+                        if peer_reviewed_sources and isinstance(peer_reviewed_sources, list):
+                            for source in peer_reviewed_sources:
+                                if isinstance(source, dict):
+                                    title = source.get("title", "Unknown Source")
+                                    url = source.get("url", "")
+                                    source_type = source.get("type", "Reference")
+                                    relevance = source.get("relevance", "")
+                                    
+                                    if url:
+                                        references_output.append({
+                                            "title": title,
+                                            "url": url,
+                                            "type": source_type,
+                                            "relevance": relevance
+                                        })
+                        elif isinstance(peer_reviewed_sources, list):
+                            # Fallback if sources are just URLs
+                            references_output = peer_reviewed_sources
+                        
+                        # Update prediction based on AI analysis
+                        if ai_verdict.upper() == "FAKE":
+                            prediction = 0  # Fake
+                            confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
+                        elif ai_verdict.upper() == "REAL":
+                            prediction = 1  # Real
+                            confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
+                        else:
+                            # Keep original ML prediction if AI couldn't determine
+                            confidence = 0.5
+                        
+                        # Build comprehensive reasoning
+                        if not reasoning_output:
+                            reasoning_output = f"AI Analysis: {ai_verdict} news with {ai_confidence.lower()} confidence."
+                        
+                        if evidence:
+                            reasoning_output += f"\n\nKey Evidence:\n" + "\n".join([f"• {point}" for point in evidence])
+                        
+                        if red_flags:
+                            reasoning_output += f"\n\nRed Flags:\n" + "\n".join([f"• {flag}" for flag in red_flags])
+                        
+                        if credibility_factors:
+                            reasoning_output += f"\n\nCredibility Factors:\n" + "\n".join([f"• {factor}" for factor in credibility_factors])
+                        
+                        if verification:
+                            reasoning_output += f"\n\nVerification: {verification}"
                                 
-                                if url:
-                                    references_output.append({
-                                        "title": title,
-                                        "url": url,
-                                        "type": source_type,
-                                        "relevance": relevance
-                                    })
-                    elif isinstance(peer_reviewed_sources, list):
-                        # Fallback if sources are just URLs
-                        references_output = peer_reviewed_sources
-                    
-                    # Update prediction based on AI analysis
-                    if ai_verdict.upper() == "FAKE":
-                        prediction = 0  # Fake
-                        confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
-                    elif ai_verdict.upper() == "REAL":
-                        prediction = 1  # Real
-                        confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
-                    else:
-                        # Keep original ML prediction if AI couldn't determine
-                        confidence = 0.5
-                    
-                    # Build comprehensive reasoning
-                    if not reasoning_output:
-                        reasoning_output = f"AI Analysis: {ai_verdict} news with {ai_confidence.lower()} confidence."
-                    
-                    if evidence:
-                        reasoning_output += f"\n\nKey Evidence:\n" + "\n".join([f"• {point}" for point in evidence])
-                    
-                    if red_flags:
-                        reasoning_output += f"\n\nRed Flags:\n" + "\n".join([f"• {flag}" for flag in red_flags])
-                    
-                    if credibility_factors:
-                        reasoning_output += f"\n\nCredibility Factors:\n" + "\n".join([f"• {factor}" for factor in credibility_factors])
-                    
-                    if verification:
-                        reasoning_output += f"\n\nVerification: {verification}"
-                            
+                    except Exception as e:
+                        # Fallback to text parsing - clean up the response
+                        reasoning_output = gemini_response.text
+                        # Remove JSON formatting if present
+                        if reasoning_output.startswith('```json'):
+                            reasoning_output = reasoning_output[7:]
+                        if reasoning_output.endswith('```'):
+                            reasoning_output = reasoning_output[:-3]
+                        reasoning_output = reasoning_output.strip()
+                        references_output = extract_urls(reasoning_output)
                 except Exception as e:
-                    # Fallback to text parsing - clean up the response
-                    reasoning_output = gemini_response.text
-                    # Remove JSON formatting if present
-                    if reasoning_output.startswith('```json'):
-                        reasoning_output = reasoning_output[7:]
-                    if reasoning_output.endswith('```'):
-                        reasoning_output = reasoning_output[:-3]
-                    reasoning_output = reasoning_output.strip()
-                    references_output = extract_urls(reasoning_output)
-            except Exception as e:
-                if "429" in str(e) or "quota" in str(e).lower():
-                    print(f"❌ API key quota exceeded, marking key as exceeded and trying next key")
-                    mark_key_quota_exceeded(available_key)
-                    # Try again with a different key
-                    available_key = get_available_api_key()
-                    if available_key:
-                        print(f"🔄 Trying with new API key: {available_key[:10]}...")
-                        genai.configure(api_key=available_key)
-                        try:
-                            gemini_response = gemini_model.generate_content(prompt)
-                            # Process response as before...
+                    if "429" in str(e) or "quota" in str(e).lower():
+                        print(f"❌ API key quota exceeded, marking key as exceeded and trying next key")
+                        mark_key_quota_exceeded(available_key)
+                        # Try again with a different key
+                        available_key = get_available_api_key()
+                        if available_key:
+                            print(f"🔄 Trying with new API key: {available_key[:10]}...")
+                            genai.configure(api_key=available_key)
                             try:
-                                response_text = gemini_response.text.strip()
-                                if response_text.startswith('```json'):
-                                    response_text = response_text[7:]
-                                if response_text.endswith('```'):
-                                    response_text = response_text[:-3]
-                                response_text = response_text.strip()
-                                
-                                parsed = json.loads(response_text)
-                                
-                                # Use the AI's verdict instead of ML pipeline prediction
-                                ai_verdict = parsed.get("verdict", "UNKNOWN")
-                                ai_confidence = parsed.get("confidence", "Medium")
-                                reasoning_output = parsed.get("reasoning", "")
-                                peer_reviewed_sources = parsed.get("peer_reviewed_sources", [])
-                                evidence = parsed.get("evidence", [])
-                                red_flags = parsed.get("red_flags", [])
-                                credibility_factors = parsed.get("credibility_factors", [])
-                                verification = parsed.get("verification", "")
-                                
-                                # Convert peer-reviewed sources to references format
+                                gemini_response = gemini_model.generate_content(prompt)
+                                # Process response as before...
+                                try:
+                                    response_text = gemini_response.text.strip()
+                                    if response_text.startswith('```json'):
+                                        response_text = response_text[7:]
+                                    if response_text.endswith('```'):
+                                        response_text = response_text[:-3]
+                                    response_text = response_text.strip()
+                                    
+                                    parsed = json.loads(response_text)
+                                    
+                                    # Use the AI's verdict instead of ML pipeline prediction
+                                    ai_verdict = parsed.get("verdict", "UNKNOWN")
+                                    ai_confidence = parsed.get("confidence", "Medium")
+                                    reasoning_output = parsed.get("reasoning", "")
+                                    peer_reviewed_sources = parsed.get("peer_reviewed_sources", [])
+                                    evidence = parsed.get("evidence", [])
+                                    red_flags = parsed.get("red_flags", [])
+                                    credibility_factors = parsed.get("credibility_factors", [])
+                                    verification = parsed.get("verification", "")
+                                    
+                                    # Convert peer-reviewed sources to references format
+                                    references_output = []
+                                    if peer_reviewed_sources and isinstance(peer_reviewed_sources, list):
+                                        for source in peer_reviewed_sources:
+                                            if isinstance(source, dict):
+                                                title = source.get("title", "Unknown Source")
+                                                url = source.get("url", "")
+                                                source_type = source.get("type", "Reference")
+                                                relevance = source.get("relevance", "")
+                                                
+                                                if url:
+                                                    references_output.append({
+                                                        "title": title,
+                                                        "url": url,
+                                                        "type": source_type,
+                                                        "relevance": relevance
+                                                    })
+                                    elif isinstance(peer_reviewed_sources, list):
+                                        # Fallback if sources are just URLs
+                                        references_output = peer_reviewed_sources
+                                    
+                                    # Update prediction based on AI analysis
+                                    if ai_verdict.upper() == "FAKE":
+                                        prediction = 0  # Fake
+                                        confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
+                                    elif ai_verdict.upper() == "REAL":
+                                        prediction = 1  # Real
+                                        confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
+                                    else:
+                                        # Keep original ML prediction if AI couldn't determine
+                                        confidence = 0.5
+                                    
+                                    # Build comprehensive reasoning
+                                    if not reasoning_output:
+                                        reasoning_output = f"AI Analysis: {ai_verdict} news with {ai_confidence.lower()} confidence."
+                                    
+                                    if evidence:
+                                        reasoning_output += f"\n\nKey Evidence:\n" + "\n".join([f"• {point}" for point in evidence])
+                                    
+                                    if red_flags:
+                                        reasoning_output += f"\n\nRed Flags:\n" + "\n".join([f"• {flag}" for flag in red_flags])
+                                    
+                                    if credibility_factors:
+                                        reasoning_output += f"\n\nCredibility Factors:\n" + "\n".join([f"• {factor}" for factor in credibility_factors])
+                                    
+                                    if verification:
+                                        reasoning_output += f"\n\nVerification: {verification}"
+                                    
+                                    # Cache the successful analysis
+                                    cache_analysis(text, {
+                                        'reasoning': reasoning_output,
+                                        'references': references_output,
+                                        'prediction': prediction,
+                                        'confidence': confidence
+                                    })
+                                except Exception as e2:
+                                    reasoning_output = gemini_response.text
+                                    if reasoning_output.startswith('```json'):
+                                        reasoning_output = reasoning_output[7:]
+                                    if reasoning_output.endswith('```'):
+                                        reasoning_output = reasoning_output[:-3]
+                                    reasoning_output = reasoning_output.strip()
+                                    references_output = extract_urls(reasoning_output)
+                            except Exception as e3:
+                                print(f"❌ Second API key also failed: {e3}")
+                                reasoning_output = f"All Gemini API keys exhausted. Using ML model prediction for analysis."
                                 references_output = []
-                                if peer_reviewed_sources and isinstance(peer_reviewed_sources, list):
-                                    for source in peer_reviewed_sources:
-                                        if isinstance(source, dict):
-                                            title = source.get("title", "Unknown Source")
-                                            url = source.get("url", "")
-                                            source_type = source.get("type", "Reference")
-                                            relevance = source.get("relevance", "")
-                                            
-                                            if url:
-                                                references_output.append({
-                                                    "title": title,
-                                                    "url": url,
-                                                    "type": source_type,
-                                                    "relevance": relevance
-                                                })
-                                elif isinstance(peer_reviewed_sources, list):
-                                    # Fallback if sources are just URLs
-                                    references_output = peer_reviewed_sources
                                 
-                                # Update prediction based on AI analysis
-                                if ai_verdict.upper() == "FAKE":
-                                    prediction = 0  # Fake
-                                    confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
-                                elif ai_verdict.upper() == "REAL":
-                                    prediction = 1  # Real
-                                    confidence = 0.8 if ai_confidence.lower() == "high" else 0.6 if ai_confidence.lower() == "medium" else 0.4
-                                else:
-                                    # Keep original ML prediction if AI couldn't determine
-                                    confidence = 0.5
-                                
-                                # Build comprehensive reasoning
-                                if not reasoning_output:
-                                    reasoning_output = f"AI Analysis: {ai_verdict} news with {ai_confidence.lower()} confidence."
-                                
-                                if evidence:
-                                    reasoning_output += f"\n\nKey Evidence:\n" + "\n".join([f"• {point}" for point in evidence])
-                                
-                                if red_flags:
-                                    reasoning_output += f"\n\nRed Flags:\n" + "\n".join([f"• {flag}" for flag in red_flags])
-                                
-                                if credibility_factors:
-                                    reasoning_output += f"\n\nCredibility Factors:\n" + "\n".join([f"• {factor}" for factor in credibility_factors])
-                                
-                                if verification:
-                                    reasoning_output += f"\n\nVerification: {verification}"
-                            except Exception as e2:
-                                reasoning_output = gemini_response.text
-                                if reasoning_output.startswith('```json'):
-                                    reasoning_output = reasoning_output[7:]
-                                if reasoning_output.endswith('```'):
-                                    reasoning_output = reasoning_output[:-3]
-                                reasoning_output = reasoning_output.strip()
-                                references_output = extract_urls(reasoning_output)
-                        except Exception as e3:
-                            print(f"❌ Second API key also failed: {e3}")
-                            reasoning_output = f"All Gemini API keys exhausted. Using ML model prediction for analysis."
+                                # Cache the ML-only analysis
+                                cache_analysis(text, {
+                                    'reasoning': reasoning_output,
+                                    'references': references_output,
+                                    'prediction': prediction,
+                                    'confidence': confidence
+                                })
+                        else:
+                            print("❌ All API keys exhausted, falling back to ML model prediction")
+                            reasoning_output = f"All Gemini API keys have exceeded their daily quota. Using ML model prediction for analysis."
                             references_output = []
                     else:
-                        print("❌ All API keys exhausted, falling back to ML model prediction")
-                        reasoning_output = f"All Gemini API keys have exceeded their daily quota. Using ML model prediction for analysis."
+                        reasoning_output = f"Gemini generation failed: {e}"
                         references_output = []
-                else:
-                    reasoning_output = f"Gemini generation failed: {e}"
-                    references_output = []
 
         summary, breakdown, supporting, final_judgment = parse_gemini_reasoning(reasoning_output)
 
@@ -2041,6 +2082,37 @@ def test_file_content():
         
     except Exception as e:
         return jsonify({'error': f'File reading failed: {str(e)}'}), 500
+
+# Add caching imports
+import hashlib
+from datetime import datetime, timedelta
+
+# Add cache storage
+analysis_cache = {}
+
+def get_cache_key(text):
+    """Generate cache key for text content"""
+    return hashlib.md5(text.encode()).hexdigest()
+
+def get_cached_analysis(text):
+    """Get cached analysis if available and not expired"""
+    cache_key = get_cache_key(text)
+    if cache_key in analysis_cache:
+        cached = analysis_cache[cache_key]
+        # Cache expires after 24 hours
+        if datetime.now() - cached['timestamp'] < timedelta(hours=24):
+            print(f"✅ Using cached analysis for content")
+            return cached['result']
+    return None
+
+def cache_analysis(text, result):
+    """Cache analysis result"""
+    cache_key = get_cache_key(text)
+    analysis_cache[cache_key] = {
+        'result': result,
+        'timestamp': datetime.now()
+    }
+    print(f"💾 Cached analysis for future use")
 
 
 if __name__ == "__main__":
