@@ -404,9 +404,19 @@ try:
             warnings.simplefilter("ignore")
             import joblib
             pipeline = joblib.load("final_pipeline_2025_v1.pkl")
-        print(f"✅ Loaded model type: {type(pipeline)}")
-        print(f"✅ predict: {hasattr(pipeline, 'predict')}, predict_proba: {hasattr(pipeline, 'predict_proba')}")
+        print("✅ Checking model type and methods...")
+        print(f"Type: {type(pipeline)}")
+        print(f"Has predict: {hasattr(pipeline, 'predict')}")
+        print(f"Has predict_proba: {hasattr(pipeline, 'predict_proba')}")
         print("✅ New MLP pipeline loaded successfully")
+        
+        # Test with dummy input to verify model works
+        test_input = "The president announced a new policy on education."
+        try:
+            test_result = pipeline.predict([test_input])[0]
+            print(f"✅ Test prediction with dummy input: {test_result}")
+        except Exception as e:
+            print(f"❌ Test prediction failed: {e}")
     except Exception as e1:
         print(f"❌ Failed to load new model: {e1}")
         # Fallback to fixed model
@@ -1076,8 +1086,11 @@ def index():
             confidence = 0.5
             print("⚠️  Using fallback prediction (no ML model available)")
         else:
+            print("🧠 Transcript being passed to model:", cleaned_text[:200])
+            print("🔎 Model prediction in progress...")
             prediction = pipeline.predict([cleaned_text])[0]
             confidence = pipeline.predict_proba([cleaned_text])[0].max()
+            print(f"✅ Test prediction: {prediction}")
 
         label_map = {0: "Fake", 1: "Real"}
 
