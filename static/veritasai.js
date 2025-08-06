@@ -613,7 +613,14 @@ async function handleFilePrediction() {
       const confidence = confidenceMatch ? confidenceMatch[1] : 'Unknown';
       const reasoning = reasoningMatch ? reasoningMatch[1] : 'No reasoning available';
       const originalNews = originalNewsMatch ? originalNewsMatch[1] : '';
-      const redFlags = redFlagsMatch ? redFlagsMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+      const redFlags = redFlagsMatch ? (function sanitize(input) {
+        let previous;
+        do {
+          previous = input;
+          input = input.replace(/<[^>]+>/g, '');
+        } while (input !== previous);
+        return input.trim();
+      })(redFlagsMatch[1]) : '';
       
       console.log('✅ File extracted prediction:', prediction);
       console.log('✅ File extracted confidence:', confidence);
