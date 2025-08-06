@@ -2,7 +2,7 @@
 """
 Test the YouTube hybrid analysis fix
 """
-
+from urllib.parse import urlparse
 def test_youtube_hybrid_analysis():
     """Test the new YouTube hybrid analysis approach"""
     
@@ -53,7 +53,9 @@ def test_youtube_hybrid_analysis():
         text = test_case['text']
         
         # Check if it's YouTube
-        is_youtube = "youtube.com" in url or "youtu.be" in url
+        parsed_url = urlparse(url)
+        hostname = parsed_url.hostname or ""
+        is_youtube = hostname.endswith("youtube.com") or hostname == "youtu.be"
         print(f"YouTube URL: {is_youtube}")
         
         if is_youtube:
