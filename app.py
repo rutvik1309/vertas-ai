@@ -101,6 +101,440 @@ def load_api_keys():
     
     return keys
 
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
+
+def get_references_from_google(query, num_results=5):
+    """Get references from Google Custom Search API with fallback to web search"""
+    try:
+        # Check if Google CSE is configured
+        if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
+            print("⚠️ Google CSE not configured, using fallback references")
+            return get_fallback_references(query, num_results)
+        
+        url = "https://www.googleapis.com/customsearch/v1"
+        params = {
+            "key": GOOGLE_API_KEY,
+            "cx": GOOGLE_CSE_ID,
+            "q": query,
+            "num": num_results
+        }
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            refs = []
+            for item in data.get("items", []):
+                refs.append({
+                    "title": item.get("title"),
+                    "link": item.get("link"),
+                    "snippet": item.get("snippet")
+                })
+            print(f"✅ Found {len(refs)} references via Google CSE")
+            return refs
+        else:
+            print(f"Google Search API error: {response.text}")
+            return get_fallback_references(query, num_results)
+    except Exception as e:
+        print(f"Error fetching references: {e}")
+        return get_fallback_references(query, num_results)
+
+def get_fallback_references(query, num_results=5):
+    """Provide fallback references when Google CSE is not available"""
+    try:
+        # Use Gemini to generate relevant references
+        available_key = get_available_api_key()
+        if available_key is None:
+            return get_static_references(query, num_results)
+        
+        genai.configure(api_key=available_key)
+        
+        prompt = f"""
+Generate {num_results} SPECIFIC and RELEVANT fact-checking references for this query: "{query}"
+
+IMPORTANT: Do NOT provide generic fact-checking websites. Instead, provide SPECIFIC sources that would actually contain information about this exact topic.
+
+Instructions:
+1. Analyze the query and identify the specific claims/topics
+2. Provide SPECIFIC URLs that would contain information about these claims
+3. Focus on official government sources, news articles, and authoritative sources
+4. Make sure the sources are RELEVANT to the specific claims in the query
+5. Include specific news articles, government reports, or official statements
+
+For example, if the query is about "Trump tariffs on Canada", provide:
+- Specific news articles about Trump's trade policies
+- Official government trade data
+- Specific fact-checking articles about this claim
+- NOT generic fact-checking websites
+
+Return ONLY a JSON array of reference objects:
+
+[
+  {{
+    "title": "Specific Source Title",
+    "link": "https://specific-url.com",
+    "snippet": "Brief description of why this source is relevant to the specific claim"
+  }}
+]
+
+Make sure each reference is SPECIFICALLY relevant to the query content.
+"""
+
+        response = gemini_model.generate_content(prompt)
+        response_text = response.text.strip()
+        
+        # Clean up response
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        try:
+            refs = json.loads(response_text)
+            if isinstance(refs, list):
+                print(f"✅ Generated {len(refs)} AI-generated relevant references")
+                return refs[:num_results]
+            else:
+                return get_contextual_static_references(query, num_results)
+        except json.JSONDecodeError:
+            return get_contextual_static_references(query, num_results)
+            
+    except Exception as e:
+        print(f"Error generating fallback references: {e}")
+        return get_contextual_static_references(query, num_results)
+
+def get_contextual_static_references(query, num_results=5):
+    """Provide contextual static references based on the query content"""
+    query_lower = query.lower()
+    
+    # Analyze the query to determine the topic
+    references = []
+    
+    # Political/Government topics
+    if any(word in query_lower for word in ['trump', 'biden', 'president', 'government', 'white house']):
+        references.extend([
+            {
+                "title": "White House - Official Statements",
+                "link": "https://www.whitehouse.gov/briefing-room/",
+                "snippet": f"Official government statements and policies related to: {query}"
+            },
+            {
+                "title": "Congressional Research Service",
+                "link": "https://crsreports.congress.gov/",
+                "snippet": f"Official congressional research and analysis on: {query}"
+            },
+            {
+                "title": "Federal Register - Government Actions",
+                "link": "https://www.federalregister.gov/",
+                "snippet": f"Official government actions and regulations related to: {query}"
+            }
+        ])
+    
+    # Trade/Economic topics
+    if any(word in query_lower for word in ['tariff', 'trade', 'economy', 'gdp', 'import', 'export']):
+        references.extend([
+            {
+                "title": "U.S. International Trade Commission",
+                "link": "https://www.usitc.gov/",
+                "snippet": f"Official trade data and analysis for: {query}"
+            },
+            {
+                "title": "Bureau of Economic Analysis",
+                "link": "https://www.bea.gov/",
+                "snippet": f"Official economic data and statistics related to: {query}"
+            },
+            {
+                "title": "Office of the U.S. Trade Representative",
+                "link": "https://ustr.gov/",
+                "snippet": f"Official U.S. trade policy and agreements for: {query}"
+            }
+        ])
+    
+    # International Relations
+    if any(word in query_lower for word in ['canada', 'palestine', 'israel', 'international', 'foreign']):
+        references.extend([
+            {
+                "title": "U.S. Department of State",
+                "link": "https://www.state.gov/",
+                "snippet": f"Official U.S. foreign policy and international relations for: {query}"
+            },
+            {
+                "title": "Government of Canada - International Relations",
+                "link": "https://www.international.gc.ca/",
+                "snippet": f"Official Canadian government position on: {query}"
+            }
+        ])
+    
+    # News and Fact-Checking
+    if any(word in query_lower for word in ['news', 'announcement', 'statement', 'claim']):
+        references.extend([
+            {
+                "title": "Reuters - Latest News",
+                "link": "https://www.reuters.com/",
+                "snippet": f"Latest news coverage and fact-checking for: {query}"
+            },
+            {
+                "title": "Associated Press - Fact Check",
+                "link": "https://apnews.com/hub/fact-checking",
+                "snippet": f"AP fact-checking of claims related to: {query}"
+            }
+        ])
+    
+    # Political Polarization and Democratic Institutions
+    if any(word in query_lower for word in ['polarization', 'democratic', 'institutions', 'unity', 'ideological', 'divide']):
+        references.extend([
+            {
+                "title": "Pew Research Center - Political Polarization",
+                "link": "https://www.pewresearch.org/topic/politics-policy/political-attitudes-values/",
+                "snippet": "Research on political polarization and democratic institutions"
+            },
+            {
+                "title": "Brookings Institution - Democracy Studies",
+                "link": "https://www.brookings.edu/topic/democracy/",
+                "snippet": "Analysis of democratic institutions and political trends"
+            },
+            {
+                "title": "Stanford University - Political Science Research",
+                "link": "https://politicalscience.stanford.edu/research",
+                "snippet": "Academic research on political polarization and democratic institutions"
+            },
+            {
+                "title": "Harvard Kennedy School - Democracy Research",
+                "link": "https://www.hks.harvard.edu/research-insights/democracy",
+                "snippet": "Research on democratic institutions and political polarization"
+            }
+        ])
+    
+    # Crime and Law Enforcement
+    if any(word in query_lower for word in ['crime', 'police', 'law enforcement', 'dc', 'washington']):
+        references.extend([
+            {
+                "title": "FBI Crime Statistics",
+                "link": "https://ucr.fbi.gov/",
+                "snippet": "Official FBI crime statistics and data"
+            },
+            {
+                "title": "Metropolitan Police Department - DC",
+                "link": "https://mpdc.dc.gov/",
+                "snippet": "Official Washington D.C. police statistics and crime data"
+            },
+            {
+                "title": "Bureau of Justice Statistics",
+                "link": "https://bjs.ojp.gov/",
+                "snippet": "Official U.S. crime and justice statistics"
+            }
+        ])
+    
+    # If no specific category matches, provide general but relevant sources
+    if not references:
+        references = [
+            {
+                "title": "Reuters Fact Check",
+                "link": "https://www.reuters.com/fact-check/",
+                "snippet": f"Reuters fact-checking service for claims about: {query}"
+            },
+            {
+                "title": "Associated Press Fact Check",
+                "link": "https://apnews.com/hub/fact-checking",
+                "snippet": f"AP fact-checking of political claims and news stories about: {query}"
+            },
+            {
+                "title": "FactCheck.org",
+                "link": "https://www.factcheck.org/",
+                "snippet": f"FactCheck.org analysis of claims related to: {query}"
+            },
+            {
+                "title": "PolitiFact",
+                "link": "https://www.politifact.com/",
+                "snippet": f"PolitiFact verification of political claims about: {query}"
+            }
+        ]
+    
+    print(f"✅ Using {len(references[:num_results])} contextual static references")
+    return references[:num_results]
+
+def get_dynamic_references_for_article(article_text, query, num_results=5):
+    """Generate dynamic references based on actual article content"""
+    try:
+        # Import the dynamic reference finder
+        from dynamic_references import get_dynamic_references
+        
+        print(f"🔍 Generating dynamic references for article content")
+        
+        # Use the article text to generate relevant references
+        references = get_dynamic_references(article_text, num_results)
+        
+        if references:
+            print(f"✅ Generated {len(references)} dynamic references based on article content")
+            return references
+        else:
+            # Fallback to contextual references if dynamic generation fails
+            return get_contextual_fallback_references(query, num_results)
+            
+    except Exception as e:
+        print(f"Error generating dynamic references: {e}")
+        # Fallback to contextual references
+        return get_contextual_fallback_references(query, num_results)
+
+def get_contextual_fallback_references(query, num_results=5):
+    """Fallback to contextual references when dynamic generation fails"""
+    query_lower = query.lower()
+    references = []
+    
+    # Political/Government topics
+    if any(word in query_lower for word in ['trump', 'biden', 'president', 'government', 'white house']):
+        references.extend([
+            {
+                "title": "White House - Official Statements",
+                "link": "https://www.whitehouse.gov/briefing-room/",
+                "snippet": f"Official government statements and policies related to: {query}"
+            },
+            {
+                "title": "Congressional Research Service",
+                "link": "https://crsreports.congress.gov/",
+                "snippet": f"Official congressional research and analysis on: {query}"
+            }
+        ])
+    
+    # Trade/Economic topics
+    if any(word in query_lower for word in ['tariff', 'trade', 'economy', 'gdp', 'import', 'export']):
+        references.extend([
+            {
+                "title": "U.S. International Trade Commission - Tariff Data",
+                "link": "https://www.usitc.gov/tariff_affairs/tariff_databases.htm",
+                "snippet": "Official U.S. tariff data and trade statistics"
+            },
+            {
+                "title": "Office of the U.S. Trade Representative",
+                "link": "https://ustr.gov/",
+                "snippet": "Official U.S. trade policy, agreements, and tariff announcements"
+            }
+        ])
+    
+    # Fact-checking fallback
+    if not references:
+        references = [
+            {
+                "title": "Reuters Fact Check",
+                "link": "https://www.reuters.com/fact-check/",
+                "snippet": f"Reuters fact-checking service for claims about: {query}"
+            },
+            {
+                "title": "Associated Press Fact Check",
+                "link": "https://apnews.com/hub/fact-checking",
+                "snippet": f"AP fact-checking of political claims and news stories about: {query}"
+            }
+        ]
+    
+    return references[:num_results]
+
+def get_specific_references_for_claim(claim, num_results=3):
+    """Generate specific references for a particular claim"""
+    claim_lower = claim.lower()
+    
+    # Extract key terms from the claim
+    key_terms = []
+    if 'trump' in claim_lower:
+        key_terms.append('trump')
+    if 'tariff' in claim_lower:
+        key_terms.append('tariff')
+    if 'canada' in claim_lower:
+        key_terms.append('canada')
+    if 'palestine' in claim_lower:
+        key_terms.append('palestine')
+    if 'announce' in claim_lower or 'announcement' in claim_lower:
+        key_terms.append('announcement')
+    
+    # Build specific search queries
+    search_queries = []
+    if len(key_terms) >= 2:
+        search_queries.append(f"{' '.join(key_terms[:2])} fact check")
+        search_queries.append(f"{' '.join(key_terms[:2])} official statement")
+        search_queries.append(f"{' '.join(key_terms[:2])} news")
+    
+    # Generate specific references based on the claim
+    references = []
+    
+    # For Trump-related claims
+    if 'trump' in claim_lower:
+        if 'tariff' in claim_lower and 'canada' in claim_lower:
+            references.extend([
+                {
+                    "title": "USTR - Trump Trade Policies",
+                    "link": "https://ustr.gov/trade-agreements/presidential-proclamations",
+                    "snippet": f"Official USTR records of Trump's trade policies and tariff announcements"
+                },
+                {
+                    "title": "White House - Trump Administration",
+                    "link": "https://trumpwhitehouse.archives.gov/",
+                    "snippet": f"Official White House records from Trump administration"
+                },
+                {
+                    "title": "Reuters - Trump Trade Policy Coverage",
+                    "link": "https://www.reuters.com/politics/trump/",
+                    "snippet": f"Reuters coverage of Trump's trade policies and announcements"
+                }
+            ])
+        elif 'palestine' in claim_lower:
+            references.extend([
+                {
+                    "title": "U.S. State Department - Palestine Policy",
+                    "link": "https://www.state.gov/palestinian-affairs/",
+                    "snippet": f"Official U.S. policy on Palestine and Middle East relations"
+                },
+                {
+                    "title": "Reuters - Trump Palestine Policy",
+                    "link": "https://www.reuters.com/world/middle-east/",
+                    "snippet": f"Reuters coverage of Trump's Middle East policies"
+                }
+            ])
+    
+    # For Canada-related claims
+    if 'canada' in claim_lower:
+        references.extend([
+            {
+                "title": "Government of Canada - Trade Relations",
+                "link": "https://www.international.gc.ca/trade-commerce/index.aspx",
+                "snippet": f"Official Canadian government position on trade relations"
+            },
+            {
+                "title": "Global Affairs Canada",
+                "link": "https://www.international.gc.ca/",
+                "snippet": f"Official Canadian foreign policy and international relations"
+            }
+        ])
+    
+    # For Palestine-related claims
+    if 'palestine' in claim_lower:
+        references.extend([
+            {
+                "title": "U.S. State Department - Palestine",
+                "link": "https://www.state.gov/palestinian-affairs/",
+                "snippet": f"Official U.S. policy on Palestine recognition and relations"
+            },
+            {
+                "title": "UN - Palestine Recognition",
+                "link": "https://www.un.org/unispal/",
+                "snippet": f"United Nations information on Palestine recognition"
+            }
+        ])
+    
+    # If we don't have enough specific references, add general fact-checking sources
+    if len(references) < num_results:
+        references.extend([
+            {
+                "title": "FactCheck.org",
+                "link": "https://www.factcheck.org/",
+                "snippet": f"FactCheck.org analysis of claims about: {claim}"
+            },
+            {
+                "title": "PolitiFact",
+                "link": "https://www.politifact.com/",
+                "snippet": f"PolitiFact verification of political claims about: {claim}"
+            }
+        ])
+    
+    return references[:num_results]
+    
 # Load all API keys
 gemini_api_keys = load_api_keys()
 
@@ -156,8 +590,8 @@ def get_available_api_key():
             usage["minute_reset"] = current_time
         
         # Check limits
-        daily_limit = 10000  # Pro tier daily limit
-        minute_limit = 60    # Pro tier minute limit
+        daily_limit = 50     # Free tier daily limit (50 requests per day)
+        minute_limit = 15    # Free tier minute limit (15 requests per minute)
         
         # Check if key is available
         if (not usage["quota_exceeded"] and 
@@ -1192,22 +1626,11 @@ CONTENT TO ANALYZE:
 
 CRITICAL INSTRUCTIONS:
 - Analyze the ACTUAL CONTENT provided above
-- If this is a YouTube video, analyze the title, description, transcript, and uploader information
-- If this is a news article, analyze the claims, sources, and factual statements
-- If this is an image, analyze the visual content and any text present
 - Provide specific evidence from the content, not generic statements
-- Give peer-reviewed references that are RELEVANT to the specific claims made in the content
-- If the content shows "VIDEO ANALYSIS" or "YOUTUBE VIDEO ANALYSIS", analyze the provided metadata and structure
-- If the content shows "FACT-CHECKING ANALYSIS", provide a comprehensive assessment based on the analysis framework
-- If the content shows "YOUTUBE VIDEO FACT-CHECKING ANALYSIS", analyze the video based on the comprehensive framework provided and give a definitive assessment
-- IMPORTANT: Do NOT say "without access to content" if the content shows analysis frameworks or structured information
-- If you see "ACTUAL CONTENT FOR ANALYSIS" or "ANALYSIS CONTENT TO EVALUATE", this IS the content to analyze
-- Provide specific peer-reviewed references, NOT "N/A - General Guidance"
-- If you see "YOUTUBE VIDEO CONTENT FOR FACT-CHECKING ANALYSIS", this IS the actual content to analyze
-- The content provided IS the video information - analyze it directly
-- If you see "ACTUAL YOUTUBE VIDEO CONTENT TO ANALYZE", this IS the real content to analyze
-- The content above IS the actual video content - analyze it based on the provided information
-- DO NOT say "without access to content" - you HAVE the content right above
+- Give actual peer-reviewed references that are RELEVANT to the specific claims made in the content
+- DO NOT use placeholder text like "N/A" or "This would require finding" - provide actual sources
+- DO NOT say "Multiple news sources would be needed" - provide specific sources
+- DO NOT use phrases like "various articles will need to be checked" - provide actual URLs
 
 TASK: Provide a comprehensive analysis with the following structure:
 
@@ -1218,16 +1641,15 @@ TASK: Provide a comprehensive analysis with the following structure:
 5. **RED FLAGS** (if fake): List warning signs found in the content
 6. **CREDIBILITY FACTORS** (if real): List factors that make this credible
 7. **VERIFICATION METHODS**: How this can be verified or fact-checked
-8. **PEER-REVIEWED REFERENCES**: Provide academic and authoritative sources relevant to the specific claims
+8. **PEER-REVIEWED REFERENCES**: Provide actual academic and authoritative sources relevant to the specific claims
 
 IMPORTANT: 
 - Be definitive in your assessment (FAKE or REAL)
 - Provide specific evidence from the content provided
 - Consider source credibility, claims made, and verifiability
-- For YouTube videos, analyze the title, description, transcript, and uploader credibility
-- For news articles, check for sensationalism, source reliability, and factual claims
-- Provide peer-reviewed academic sources, government reports, and authoritative fact-checking organizations
+- Provide actual peer-reviewed academic sources, government reports, and authoritative fact-checking organizations
 - Include specific studies, reports, or publications that support your analysis
+- NEVER use placeholder text - always provide actual, specific sources
 
 PEER-REVIEWED SOURCES TO INCLUDE:
 - Academic journals (Nature, Science, JAMA, etc.)
@@ -1248,13 +1670,15 @@ Respond in this JSON format:
   "verification": "How to verify this story...",
   "peer_reviewed_sources": [
     {{
-      "title": "Source title",
-      "url": "https://source-url.com",
+      "title": "Actual source title",
+      "url": "https://actual-source-url.com",
       "type": "Academic/Government/News/FactCheck",
       "relevance": "How this source supports the analysis"
     }}
   ]
-}}"""
+}}
+
+CRITICAL: Never use placeholder text like "N/A" or "This would require finding" - always provide actual, specific sources."""
 
         reasoning_output = None
         references_output = None
@@ -1445,6 +1869,8 @@ Respond in this JSON format:
                         
                         if verification:
                             reasoning_output += f"\n\nVerification: {verification}"
+
+                            
                                 
                     except Exception as e:
                         # Fallback to text parsing - clean up the response
@@ -1455,7 +1881,62 @@ Respond in this JSON format:
                         if reasoning_output.endswith('```'):
                             reasoning_output = reasoning_output[:-3]
                         reasoning_output = reasoning_output.strip()
-                        references_output = extract_urls(reasoning_output)
+                        
+                        # Generate proper references using the improved system
+                        try:
+                            # Extract specific claims from the text for better reference generation
+                            if available_key:
+                                genai.configure(api_key=available_key)
+                                
+                                # Extract key claims for reference generation
+                                claims_prompt = f"""
+Extract 2-3 specific, verifiable claims from this text that would need fact-checking:
+
+{text[:1000]}
+
+Return ONLY a JSON array of the most important claims, like:
+["Claim 1", "Claim 2", "Claim 3"]
+
+Focus on factual statements that can be verified or debunked.
+"""
+                                
+                                try:
+                                    claims_response = gemini_model.generate_content(claims_prompt)
+                                    claims_text = claims_response.text.strip()
+                                    
+                                    # Clean up response
+                                    if claims_text.startswith('```json'):
+                                        claims_text = claims_text[7:]
+                                    if claims_text.endswith('```'):
+                                        claims_text = claims_text[:-3]
+                                    
+                                    claims = json.loads(claims_text)
+                                    if isinstance(claims, list) and len(claims) > 0:
+                                        # Use the first claim for reference generation
+                                        key_terms = claims[0]
+                                        print(f"🔍 Generating references for claim: {key_terms}")
+                                    else:
+                                        key_terms = text[:200] if text else ""
+                                except:
+                                    key_terms = text[:200] if text else ""
+                            else:
+                                key_terms = text[:200] if text else ""
+                            
+                            try:
+                                # Try to get specific references for the claim
+                                if key_terms and key_terms != text[:200]:
+                                    # We have a specific claim, use dynamic references based on article content
+                                    references_output = get_dynamic_references_for_article(text, key_terms, num_results=5)
+                                    print(f"✅ Generated dynamic references for claim: {key_terms}")
+                                else:
+                                    # Fall back to dynamic references based on article content
+                                    references_output = get_dynamic_references_for_article(text, key_terms, num_results=5)
+                            except Exception as e:
+                                print(f"Error generating references: {e}")
+                                references_output = []
+                        except Exception as e:
+                            print(f"Error in reference generation: {e}")
+                            references_output = []
                 except Exception as e:
                     print(f"❌ API request failed: {e}")
                     # Track failed API call
@@ -1463,7 +1944,63 @@ Respond in this JSON format:
                     
                     # Don't automatically mark as exceeded - let the quota logic handle it
                     reasoning_output = f"AI analysis temporarily unavailable. Using ML model prediction for analysis."
-                    references_output = []
+                    
+                    # Generate references even when AI analysis is unavailable
+                    try:
+                        # Try to extract claims for better reference generation
+                        available_key = get_available_api_key()
+                        if available_key:
+                            genai.configure(api_key=available_key)
+                            
+                            # Extract key claims for reference generation
+                            claims_prompt = f"""
+Extract 2-3 specific, verifiable claims from this text that would need fact-checking:
+
+{text[:1000]}
+
+Return ONLY a JSON array of the most important claims, like:
+["Claim 1", "Claim 2", "Claim 3"]
+
+Focus on factual statements that can be verified or debunked.
+"""
+                            
+                            try:
+                                claims_response = gemini_model.generate_content(claims_prompt)
+                                claims_text = claims_response.text.strip()
+                                
+                                # Clean up response
+                                if claims_text.startswith('```json'):
+                                    claims_text = claims_text[7:]
+                                if claims_text.endswith('```'):
+                                    claims_text = claims_text[:-3]
+                                
+                                claims = json.loads(claims_text)
+                                if isinstance(claims, list) and len(claims) > 0:
+                                    # Use the first claim for reference generation
+                                    key_terms = claims[0]
+                                    print(f"🔍 Generating references for claim: {key_terms}")
+                                else:
+                                    key_terms = text[:200] if text else ""
+                            except:
+                                key_terms = text[:200] if text else ""
+                        else:
+                            key_terms = text[:200] if text else ""
+                        
+                        try:
+                            # Try to get specific references for the claim
+                            if key_terms and key_terms != text[:200]:
+                                # We have a specific claim, use dynamic references based on article content
+                                references_output = get_dynamic_references_for_article(text, key_terms, num_results=5)
+                                print(f"✅ Generated dynamic references for claim: {key_terms}")
+                            else:
+                                # Fall back to dynamic references based on article content
+                                references_output = get_dynamic_references_for_article(text, key_terms, num_results=5)
+                        except Exception as e:
+                            print(f"Error generating references: {e}")
+                            references_output = []
+                    except Exception as e:
+                        print(f"Error in reference generation: {e}")
+                        references_output = []
                     
                     # Cache the ML-only analysis
                     cache_analysis(text, {
@@ -1478,7 +2015,7 @@ Respond in this JSON format:
         # Store minimal context in session for the chat agent
         session['last_article_text'] = text[:200] if text else ""  # Limit to 200 chars
         session['last_reasoning'] = reasoning_output[:300] if reasoning_output else ""  # Limit to 300 chars
-        session['last_references'] = references_output[:200] if references_output else ""  # Limit to 200 chars
+        session['last_references'] = json.dumps(references_output) if references_output else "[]"  # Store as JSON string
         session['last_prediction'] = label_map[prediction]
         
         # Silently learn from this interaction
@@ -1519,15 +2056,14 @@ Respond in this JSON format:
                 for ref in refs:
                     if isinstance(ref, dict):
                         title = ref.get("title", "Unknown Source")
-                        url = ref.get("url", "")
-                        source_type = ref.get("type", "Reference")
-                        relevance = ref.get("relevance", "")
+                        url = ref.get("link", ref.get("url", ""))  # Handle both 'link' and 'url' keys
+                        snippet = ref.get("snippet", "")
                         
                         if url:
-                            html += f'<li><strong>{title}</strong> ({source_type})<br>'
+                            html += f'<li><strong>{title}</strong><br>'
                             html += f'<a href="{url}" target="_blank">{url}</a>'
-                            if relevance:
-                                html += f'<br><em>Relevance: {relevance}</em>'
+                            if snippet:
+                                html += f'<br><em>{snippet}</em>'
                             html += '</li>'
                     elif isinstance(ref, str):
                         html += f'<li><a href="{ref}" target="_blank">{ref}</a></li>'
@@ -1801,7 +2337,14 @@ def ask():
     if not context_reasoning:
         context_reasoning = session.get('last_reasoning', '')
     if context_references == '[]':
-        context_references = json.dumps(session.get('last_references', []))
+        last_refs = session.get('last_references', [])
+        if isinstance(last_refs, str):
+            try:
+                # Try to parse as JSON if it's a string
+                last_refs = json.loads(last_refs)
+            except:
+                last_refs = []
+        context_references = json.dumps(last_refs)
     if not context_original_news:
         context_original_news = session.get('last_original_news', '')
     if context_red_flags == '[]':
@@ -1827,7 +2370,20 @@ def ask():
     if red_flags_list:
         context += f"Red Flags: {', '.join(red_flags_list)}\n"
     if references_list:
-        context += f"References: {'; '.join(references_list)}\n"
+        # Handle both old string format and new dict format
+        if isinstance(references_list, list) and len(references_list) > 0:
+            if isinstance(references_list[0], dict):
+                # New format: list of dictionaries
+                ref_strings = []
+                for ref in references_list:
+                    title = ref.get("title", "Unknown Source")
+                    url = ref.get("link", ref.get("url", ""))
+                    if url:
+                        ref_strings.append(f"{title}: {url}")
+                context += f"References: {'; '.join(ref_strings)}\n"
+            else:
+                # Old format: list of strings
+                context += f"References: {'; '.join(references_list)}\n"
     
     print(f"📝 Built context for AI:")
     print(f"   Context length: {len(context)} characters")
@@ -1858,33 +2414,89 @@ def ask():
     
     print(f"   Web search needed: {needs_web_search}")
     
-    # Perform web search if needed
+    # Extract specific claims from the article content for targeted reference search
+    article_claims = []
+    if context_article and len(context_article) > 50:
+        # Use a more efficient approach - extract claims as part of the main response
+        # This reduces API calls by combining claims extraction with the main chat response
+        print(f"📝 Article context available for claims extraction: {len(context_article)} characters")
+
+        # Always perform web search for better references and citations
     web_search_results = ""
-    if needs_web_search:
-        print(f"🔍 Performing web search for: {user_question}")
+    print(f"🔍 Performing web search for: {user_question}")
+    
+    # Use static references when API keys are exhausted
+    try:
+        # Search for relevant information
+        search_query = f"{user_question} {context_article[:100] if context_article else ''}"
+        print(f"🔍 Search query: {search_query}")
+        
+        # Try to get references from Google CSE first
+        search_results = get_references_from_google(search_query, num_results=5)
+        print(f"🔍 Search results count: {len(search_results) if search_results else 0}")
+        
+        # If no search results, use dynamic references based on article content
+        if not search_results:
+            print("🔍 No Google search results, using dynamic references")
+            search_results = get_dynamic_references_for_article(context_article or "", search_query, num_results=5)
+            print(f"✅ Found {len(search_results)} dynamic references")
+        
+        # Optimize reference search - use dynamic references for article claims
+        article_references = []
+        if article_claims:
+            print(f"🔍 Using dynamic references for {len(article_claims)} article claims")
+            for claim in article_claims[:2]:  # Limit to 2 claims
+                try:
+                    # Use dynamic references based on article content
+                    dynamic_refs = get_dynamic_references_for_article(context_article or "", claim, num_results=2)
+                    if dynamic_refs:
+                        article_references.extend(dynamic_refs)
+                        print(f"✅ Found {len(dynamic_refs)} dynamic references for claim")
+                except Exception as e:
+                    print(f"Error with dynamic references for claim '{claim}': {e}")
+        
+        # Combine search results
+        all_results = search_results or []
+        all_results.extend(article_references)
+        
+        if all_results:
+            web_search_results = "\n\n=== WEB SEARCH RESULTS ===\n"
+            for i, result in enumerate(all_results, 1):
+                web_search_results += f"\n{i}. {result['title']}\n"
+                web_search_results += f"   URL: {result['link']}\n"
+                web_search_results += f"   Summary: {result['snippet'][:200]}...\n"
+            web_search_results += "\n=== END WEB SEARCH RESULTS ===\n"
+            print(f"🔍 Web search results added to prompt ({len(all_results)} total results)")
+        else:
+            web_search_results = "\n\n=== WEB SEARCH RESULTS ===\nNo relevant web results found.\n=== END WEB SEARCH RESULTS ===\n"
+            print(f"🔍 No web search results found")
+    except Exception as e:
+        print(f"Web search error: {e}")
+        # Fallback to dynamic references when API calls fail
         try:
-            # Search for relevant information
-            search_query = f"{user_question} {context_article[:100] if context_article else ''}"
-            print(f"🔍 Search query: {search_query}")
-            search_results = search_web(search_query, num_results=3)
-            print(f"🔍 Search results count: {len(search_results) if search_results else 0}")
-            
-            if search_results:
+            print("🔄 API calls failed, using dynamic references based on article content")
+            fallback_refs = get_dynamic_references_for_article(context_article or "", search_query, num_results=5)
+            if fallback_refs:
                 web_search_results = "\n\n=== WEB SEARCH RESULTS ===\n"
-                for i, result in enumerate(search_results, 1):
+                for i, result in enumerate(fallback_refs, 1):
                     web_search_results += f"\n{i}. {result['title']}\n"
-                    web_search_results += f"   URL: {result['url']}\n"
+                    web_search_results += f"   URL: {result['link']}\n"
                     web_search_results += f"   Summary: {result['snippet'][:200]}...\n"
                 web_search_results += "\n=== END WEB SEARCH RESULTS ===\n"
-                print(f"🔍 Web search results added to prompt")
+                print(f"✅ Using {len(fallback_refs)} dynamic references based on article content")
             else:
-                web_search_results = "\n\n=== WEB SEARCH RESULTS ===\nNo relevant web results found.\n=== END WEB SEARCH RESULTS ===\n"
-                print(f"🔍 No web search results found")
-        except Exception as e:
-            print(f"Web search error: {e}")
+                # Final fallback to contextual references
+                contextual_refs = get_contextual_fallback_references(search_query, num_results=5)
+                web_search_results = "\n\n=== WEB SEARCH RESULTS ===\n"
+                for i, result in enumerate(contextual_refs, 1):
+                    web_search_results += f"\n{i}. {result['title']}\n"
+                    web_search_results += f"   URL: {result['link']}\n"
+                    web_search_results += f"   Summary: {result['snippet'][:200]}...\n"
+                web_search_results += "\n=== END WEB SEARCH RESULTS ===\n"
+                print(f"✅ Using {len(contextual_refs)} contextual fallback references")
+        except Exception as fallback_error:
+            print(f"Fallback reference error: {fallback_error}")
             web_search_results = "\n\n=== WEB SEARCH RESULTS ===\nWeb search temporarily unavailable.\n=== END WEB SEARCH RESULTS ===\n"
-    else:
-        print(f"🔍 Web search not needed for this question")
 
     # Build enhanced chat prompt with learning and web search
     base_prompt = f"""You are Veritas AI, an expert news fact-checking and analysis AI with web search capabilities. You can search the internet for current information and references.
@@ -1902,19 +2514,25 @@ CRITICAL INSTRUCTIONS:
 3. If the user asks about "this news" or "the article", refer to the news context provided above
 4. Provide detailed, accurate, and helpful responses based on the available context
 5. Always fact-check and be skeptical of claims
-6. Cite sources when possible using the references provided
-7. Learn from relevant previous conversations to improve your responses
-8. Be consistent with your previous answers on similar topics
-9. **CRITICAL: You HAVE web search capabilities and CAN access current information online**
-10. **When users ask for references, citations, or current information, you MUST use the web search results provided above**
-11. **If web search results are available, you MUST use them to provide current, accurate references**
-12. **You can search for academic sources, news articles, and other relevant information online**
-13. **When providing APA or MLA citations, you MUST use the web search results to find current sources**
-14. **NEVER say you cannot search the internet - you CAN and SHOULD use the web search results provided**
-15. **If web search results are provided, use them to answer the user's question with current, accurate information**
-16. **IMPORTANT: Web search results are provided above in the "WEB SEARCH RESULTS" section - USE THEM!**
-17. **When users ask for "search online" or "apa format references", you MUST reference the web search results provided**
-18. **Do NOT ask users to provide information that you can find in the web search results above**
+6. **CRITICAL: When providing references, you MUST use the web search results provided above**
+7. **ALWAYS include actual, specific references from the web search results in your responses**
+8. **When users ask for references, citations, or "search online", provide the actual URLs and sources from the web search results**
+9. **NEVER provide generic or placeholder references - only use the specific sources found in the web search results**
+10. **If web search results are available, you MUST reference them with their actual titles and URLs**
+11. **Format references as: "Source: [Title] - [URL]" or similar clear format**
+12. **EFFICIENCY: Extract key claims from the article context and provide relevant references in ONE response**
+13. **Learn from relevant previous conversations to improve your responses**
+14. **Be consistent with your previous answers on similar topics**
+15. **CRITICAL: You HAVE web search capabilities and CAN access current information online**
+16. **When users ask for references, citations, or current information, you MUST use the web search results provided above**
+17. **If web search results are available, you MUST use them to provide current, accurate references**
+18. **You can search for academic sources, news articles, and other relevant information online**
+19. **When providing APA or MLA citations, you MUST use the web search results to find current sources**
+20. **NEVER say you cannot search the internet - you CAN and SHOULD use the web search results provided**
+21. **If web search results are provided, use them to answer the user's question with current, accurate information**
+22. **IMPORTANT: Web search results are provided above in the "WEB SEARCH RESULTS" section - USE THEM!**
+23. **When users ask for "search online" or "apa format references", you MUST reference the web search results provided**
+24. **Do NOT ask users to provide information that you can find in the web search results above**
 
 Current conversation context:
 {chat_history if chat_history else 'This is a new conversation.'}
@@ -2293,6 +2911,212 @@ def test_file_content():
     except Exception as e:
         return jsonify({'error': f'File reading failed: {str(e)}'}), 500
 
+@app.route('/api/manual-fact-check', methods=['POST'])
+def manual_fact_check():
+    """
+    Extract claims from article text and return them for manual fact-checking.
+    Accepts JSON or form data with:
+      - article_text (preferred), or
+      - text, or
+      - url (we'll fetch text with newspaper3k)
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+    except Exception:
+        data = {}
+
+    # Accept both JSON and form
+    article_text = (data.get('article_text') or data.get('text') or request.form.get('article_text') or request.form.get('text') or "").strip()
+    url = (data.get('url') or request.form.get('url') or "").strip()
+
+    # If no explicit text, try to build from URL content
+    if (not article_text) and url:
+        try:
+            article = Article(url)
+            article.download()
+            article.parse()
+            article_text = (article.text or article.title or "")[:2000]  # Limit to 2000 chars
+        except Exception as e:
+            print(f"manual-fact-check: failed to fetch article from URL: {e}")
+
+    if not article_text:
+        return jsonify({'error': 'Provide at least one of: article_text, text, or url'}), 400
+
+    # Extract claims using Gemini AI
+    try:
+        available_key = get_available_api_key()
+        if available_key is None:
+            return jsonify({'error': 'All API keys have exceeded their quota. Please try again tomorrow.'}), 429
+        
+        genai.configure(api_key=available_key)
+        
+        prompt = f"""
+You are an expert fact-checker. Extract specific, verifiable claims from the following article text. Focus on factual statements that can be verified or debunked.
+
+Article text:
+{article_text[:3000]}
+
+Instructions:
+1. Extract 3-8 specific, verifiable claims from the article
+2. Each claim should be a factual statement that can be checked
+3. Focus on statements about events, statistics, quotes, dates, or specific actions
+4. Avoid opinions, predictions, or vague statements
+5. Make claims specific and actionable for fact-checking
+
+Return ONLY a JSON array of claim strings, like this:
+[
+  "Claim 1: [specific factual statement]",
+  "Claim 2: [specific factual statement]",
+  "Claim 3: [specific factual statement]"
+]
+
+Example claims:
+- "Trump announced 35% tariff on Canadian goods on [specific date]"
+- "US economy showed 3% GDP growth in Q2 2025"
+- "Kamala Harris announced she will not run for California Governor"
+
+Return valid JSON only.
+"""
+
+        response = gemini_model.generate_content(prompt)
+        response_text = response.text.strip()
+        
+        # Clean up response if it has markdown formatting
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        try:
+            claims = json.loads(response_text)
+            if isinstance(claims, list):
+                # Clean up claims
+                cleaned_claims = []
+                for claim in claims:
+                    if isinstance(claim, str) and claim.strip():
+                        # Remove "Claim X:" prefix if present
+                        clean_claim = claim.strip()
+                        if clean_claim.lower().startswith('claim'):
+                            parts = clean_claim.split(':', 1)
+                            if len(parts) > 1:
+                                clean_claim = parts[1].strip()
+                        cleaned_claims.append(clean_claim)
+
+                return jsonify({
+                    "success": True,
+                    "message": f"Successfully extracted {len(cleaned_claims)} claims",
+                    "claims": cleaned_claims,
+                    "article_length": len(article_text)
+                })
+            else:
+                return jsonify({'error': 'Invalid claims format returned by AI'}), 500
+                
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error: {e}")
+            print(f"Response text: {response_text}")
+            return jsonify({'error': 'Failed to parse AI response'}), 500
+            
+    except Exception as e:
+        print(f"Error in manual fact-check: {e}")
+        return jsonify({'error': f'AI analysis failed: {str(e)}'}), 500
+
+
+@app.route('/api/generate-apa-citations', methods=['POST'])
+def generate_apa_citations():
+    """
+    Generate APA citations for claims with manually provided URLs.
+    Accepts JSON with claims_with_urls array.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        claims_with_urls = data.get('claims_with_urls', [])
+        
+        if not claims_with_urls:
+            return jsonify({'error': 'No claims_with_urls provided'}), 400
+        
+        # Validate input structure
+        for item in claims_with_urls:
+            if not isinstance(item, dict) or 'claim' not in item or 'urls' not in item:
+                return jsonify({'error': 'Invalid claims_with_urls format'}), 400
+            if not isinstance(item['urls'], list):
+                return jsonify({'error': 'URLs must be a list'}), 400
+        
+        available_key = get_available_api_key()
+        if available_key is None:
+            return jsonify({'error': 'All API keys have exceeded their quota. Please try again tomorrow.'}), 429
+        
+        genai.configure(api_key=available_key)
+        
+        # Process each claim
+        citations_results = []
+        
+        for claim_data in claims_with_urls:
+            claim = claim_data['claim']
+            urls = claim_data['urls']
+            
+            if not urls:
+                continue
+            
+            # Generate APA citations for this claim's URLs
+            claim_citations = []
+            
+            for url in urls:
+                try:
+                    # Extract metadata from URL
+                    prompt = f"""
+Generate an APA citation for this URL: {url}
+
+The URL is being used to fact-check this claim: "{claim}"
+
+Instructions:
+1. Generate a proper APA citation for the webpage
+2. Include author, date, title, and URL
+3. If author/date not available, use "n.d." for date and "Author unknown" for author
+4. Format as: Author, A. (Year). Title of page. Website Name. URL
+
+Return ONLY the APA citation text, nothing else.
+"""
+
+                    response = gemini_model.generate_content(prompt)
+                    citation_text = response.text.strip()
+                    
+                    # Clean up citation
+                    if citation_text.startswith('```'):
+                        citation_text = citation_text.split('\n', 1)[1] if '\n' in citation_text else citation_text[3:]
+                    if citation_text.endswith('```'):
+                        citation_text = citation_text[:-3]
+                    
+                    citation_text = citation_text.strip()
+                    
+                    claim_citations.append({
+                        "citation": citation_text,
+                        "url": url,
+                        "error": None
+                    })
+                    
+                except Exception as e:
+                    print(f"Error generating citation for {url}: {e}")
+                    claim_citations.append({
+                        "citation": f"Error generating citation for {url}",
+                        "url": url,
+                        "error": str(e)
+                    })
+            
+            citations_results.append({
+                "claim": claim,
+                "citations": claim_citations
+            })
+
+        return jsonify({
+            "success": True,
+            "message": f"Generated APA citations for {len(citations_results)} claims",
+            "citations": citations_results
+        })
+        
+    except Exception as e:
+        print(f"Error in generate-apa-citations: {e}")
+        return jsonify({'error': f'Citation generation failed: {str(e)}'}), 500
+
 # Add caching imports
 import hashlib
 from datetime import datetime, timedelta
@@ -2559,6 +3383,142 @@ def get_relevant_patterns(current_input):
         return {}
     except:
         return {}
+
+@app.route('/api/auto-fact-check', methods=['POST'])
+def auto_fact_check():
+    """
+    End-to-end quick fact-check with claims extraction and reference suggestions:
+      - Pull text from url or use provided text
+      - Extract claims using AI
+      - Run the ML model if available
+      - Return prediction + claims with suggested references
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+    except Exception:
+        data = {}
+
+    # Accept both JSON and form fields - support both article_text and text
+    url = (data.get('url') or request.form.get('url') or "").strip()
+    text = (data.get('article_text') or data.get('text') or request.form.get('article_text') or request.form.get('text') or "").strip()
+
+    if url and not text:
+        try:
+            article = Article(url)
+            article.download()
+            article.parse()
+            text = article.text or article.title or ""
+        except Exception as e:
+            print(f"auto-fact-check: failed to fetch article from URL: {e}")
+
+    if not text:
+        return jsonify({"error": "No valid text or url provided."}), 400
+
+    cleaned = clean_text(text)
+
+    # Extract claims using AI
+    claims = []
+    try:
+        available_key = get_available_api_key()
+        if available_key is not None:
+            genai.configure(api_key=available_key)
+            
+            prompt = f"""
+Extract 3-5 specific, verifiable claims from this article text:
+
+{text[:2000]}
+
+Return ONLY a JSON array of claim strings, like this:
+[
+  "Claim 1: [specific factual statement]",
+  "Claim 2: [specific factual statement]",
+  "Claim 3: [specific factual statement]"
+]
+
+Focus on factual statements that can be verified or debunked.
+"""
+
+            response = gemini_model.generate_content(prompt)
+            response_text = response.text.strip()
+            
+            # Clean up response
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]
+            
+            try:
+                claims = json.loads(response_text)
+                if isinstance(claims, list):
+                    # Clean up claims
+                    cleaned_claims = []
+                    for claim in claims:
+                        if isinstance(claim, str) and claim.strip():
+                            clean_claim = claim.strip()
+                            if clean_claim.lower().startswith('claim'):
+                                parts = clean_claim.split(':', 1)
+                                if len(parts) > 1:
+                                    clean_claim = parts[1].strip()
+                            cleaned_claims.append(clean_claim)
+                    claims = cleaned_claims
+                else:
+                    claims = []
+            except json.JSONDecodeError:
+                claims = []
+    except Exception as e:
+        print(f"Error extracting claims: {e}")
+        claims = []
+
+    # Default prediction if pipeline not available
+    pred_int, conf = 0, 0.5
+    if 'pipeline' in globals() and (pipeline is not None):
+        try:
+            pred_int = int(pipeline.predict([cleaned])[0])
+            conf = float(pipeline.predict_proba([cleaned])[0].max())
+        except Exception as e:
+            print(f"auto-fact-check: model inference error: {e}")
+
+    label_map = {0: "Fake", 1: "Real"}
+    prediction_label = label_map.get(pred_int, "Fake")
+
+    # Generate claims with suggested URLs
+    claims_with_urls = []
+    for claim in claims:
+        try:
+            # Get references for this claim
+            refs = get_references_from_google(claim, num_results=3) or []
+            
+            # Format suggested URLs
+            suggested_urls = []
+            for ref in refs:
+                if ref.get("link"):
+                    suggested_urls.append({
+                        "type": "real_url",
+                        "source": "Google Search",
+                        "title": ref.get("title", "Unknown Source"),
+                        "url": ref.get("link"),
+                        "snippet": ref.get("snippet", ""),
+                        "query": claim
+                    })
+            
+            claims_with_urls.append({
+                "claim": claim,
+                "suggested_urls": suggested_urls
+            })
+        except Exception as e:
+            print(f"Error processing claim '{claim}': {e}")
+            claims_with_urls.append({
+                "claim": claim,
+                "suggested_urls": []
+            })
+
+    return jsonify({
+        "success": True,
+        "message": f"Auto fact-check completed. Found {len(claims)} claims.",
+        "prediction": prediction_label,
+        "confidence": round(conf, 4),
+        "claims_with_urls": claims_with_urls
+    })
 
 if __name__ == "__main__":
     # Add auto-recovery and keep-alive functionality
